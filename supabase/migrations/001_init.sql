@@ -18,7 +18,7 @@ create table resumes (
   candidate_id uuid references candidates(id) on delete cascade not null,
   storage_path text not null,
   parsed_data jsonb not null default '{}',
-  embedding vector(1536),
+  embedding vector(768),  -- Gemini text-embedding-004 (768-dim); set AI_EMBEDDING_PROVIDER=openai for 1536-dim
   created_at timestamptz default now() not null
 );
 
@@ -39,7 +39,7 @@ create table jobs (
   company_id uuid references companies(id) on delete set null,
   raw_description text not null,
   normalized_data jsonb not null default '{}',
-  embedding vector(1536),
+  embedding vector(768),  -- Gemini text-embedding-004 (768-dim)
   status text not null default 'active' check (status in ('active', 'closed')),
   source text not null,
   source_url text,

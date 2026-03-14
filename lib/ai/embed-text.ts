@@ -1,11 +1,23 @@
-import OpenAI from 'openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// Gemini text-embedding-004 produces 768-dim vectors (matches DB schema)
+// Switch AI_EMBEDDING_PROVIDER=openai in env to use OpenAI text-embedding-3-small (1536-dim)
+const provider = process.env.AI_EMBEDDING_PROVIDER ?? 'gemini'
 
 export async function embedText(text: string): Promise<number[]> {
-  const response = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
-    input: text,
-  })
-  return response.data[0].embedding
+  if (provider === 'openai') {
+    const OpenAI = (await import('openai')).default
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    const response = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: text,
+    })
+    return response.data[0].embedding
+  }
+
+  // Default: Gemini
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
+  const model = genAI.getGenerativeModel({ model: 'text-embedding-004' })
+  const result = await model.embedContent(text)
+  return result.embedding.values
 }
