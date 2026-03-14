@@ -36,11 +36,12 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
   }
 
   const score = Math.round(application.match_score * 100)
+  // Deterministic breakdown derived from overall score
   const breakdown = {
-    skills: Math.min(100, score + Math.floor(Math.random() * 10 - 5)),
-    experience: Math.min(100, score + Math.floor(Math.random() * 10 - 5)),
-    location: Math.min(100, score + Math.floor(Math.random() * 15 - 7)),
-    salary: Math.min(100, score + Math.floor(Math.random() * 10 - 5)),
+    skills: Math.min(100, Math.round(score * 1.05)),
+    experience: Math.min(100, Math.round(score * 0.95)),
+    location: Math.min(100, Math.round(score * 1.02)),
+    salary: Math.min(100, Math.round(score * 0.98)),
   }
 
   return (

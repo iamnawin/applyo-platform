@@ -1,16 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LayoutDashboard, FileText, Settings, ListChecks, History, LogOut, Menu, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ResumeUploader } from '@/components/candidate/ResumeUploader'
 import { PreferenceForm } from '@/components/candidate/PreferenceForm'
+import { ApprovalQueueCard } from '@/components/candidate/ApprovalQueueCard'
+import { ApplicationRow } from '@/components/candidate/ApplicationRow'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import type { Resume, Candidate } from '@/lib/types'
+import type { Resume, Candidate, Application, Job } from '@/lib/types'
 
 interface Props {
   user: { id: string; email: string; name: string }
@@ -28,11 +30,63 @@ const NAV = [
   { id: 'applications', label: 'Applications', icon: History },
 ] as const
 
+type ApplicationWithJob = Application & { job: Job }
+
 export function CandidateDashboardClient({ user, candidate, initialResumes }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('overview')
   const [resumes, setResumes] = useState<Resume[]>(initialResumes)
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Queue state
+  const [queue, setQueue] = useState<ApplicationWithJob[]>([])
+  const [queueLoaded, setQueueLoaded] = useState(false)
+  const [queueLoading, setQueueLoading] = useState(false)
+
+  // Applications history state
+  const [applications, setApplications] = useState<ApplicationWithJob[]>([])
+  const [appsLoaded, setAppsLoaded] = useState(false)
+  const [appsLoading, setAppsLoading] = useState(false)
+
+  const loadQueue = useCallback(async () => {
+    if (queueLoaded) return
+    setQueueLoading(true)
+    try {
+      const res = await fetch('/api/approvals')
+      if (res.ok) setQueue(await res.json())
+    } finally {
+      setQueueLoading(false)
+      setQueueLoaded(true)
+    }
+  }, [queueLoaded])
+
+  const loadApplications = useCallback(async () => {
+    if (appsLoaded) return
+    setAppsLoading(true)
+    try {
+      const res = await fetch('/api/applications')
+      if (res.ok) setApplications(await res.json())
+    } finally {
+      setAppsLoading(false)
+      setAppsLoaded(true)
+    }
+  }, [appsLoaded])
+
+  useEffect(() => {
+    if (tab === 'queue') loadQueue()
+    if (tab === 'applications') loadApplications()
+  }, [tab, loadQueue, loadApplications])
+
+  // Reload queue count on overview
+  useEffect(() => {
+    if (tab === 'overview') {
+      fetch('/api/approvals').then(r => r.ok ? r.json() : []).then(setQueue).catch(() => {})
+    }
+  }, [tab])
+
+  function handleQueueAction(id: string) {
+    setQueue(prev => prev.filter(a => a.id !== id))
+  }
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -44,7 +98,6 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
@@ -66,6 +119,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {NAV.map(item => {
             const Icon = item.icon
+            const isQueue = item.id === 'queue'
             return (
               <button
                 key={item.id}
@@ -78,6 +132,11 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {item.label}
+                {isQueue && queue.length > 0 && (
+                  <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                    {queue.length}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -102,7 +161,6 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
-        {/* Topbar for mobile */}
         <div className="md:hidden flex items-center gap-3 p-4 border-b sticky top-0 bg-background z-10">
           <button onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
@@ -120,9 +178,24 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatCard label="Resume" value={resumes.length > 0 ? 'Uploaded' : 'Not uploaded'} sub={latestResume ? 'Parsed & ready' : 'Upload to get started'} accent={resumes.length > 0} />
-                <StatCard label="Preferences" value={candidate ? 'Set' : 'Not set'} sub={candidate ? 'Aplio is finding jobs' : 'Set your target roles'} accent={!!candidate} />
-                <StatCard label="Queue" value="0 pending" sub="Jobs awaiting approval" />
+                <StatCard
+                  label="Resume"
+                  value={resumes.length > 0 ? 'Uploaded' : 'Not uploaded'}
+                  sub={latestResume ? 'Parsed & ready' : 'Upload to get started'}
+                  accent={resumes.length > 0}
+                />
+                <StatCard
+                  label="Preferences"
+                  value={candidate ? 'Set' : 'Not set'}
+                  sub={candidate ? 'Aplio is finding jobs' : 'Set your target roles'}
+                  accent={!!candidate}
+                />
+                <StatCard
+                  label="Queue"
+                  value={`${queue.length} pending`}
+                  sub="Jobs awaiting your approval"
+                  accent={queue.length > 0}
+                />
               </div>
 
               {resumes.length === 0 && (
@@ -133,14 +206,14 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                 </div>
               )}
 
-              {resumes.length > 0 && (
+              {latestResume && (
                 <div>
                   <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Latest resume</h2>
                   <div className="rounded-lg border p-4 flex items-center gap-4">
                     <FileText className="h-8 w-8 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium">{latestResume.parsed_data.name}</p>
-                      <p className="text-sm text-muted-foreground">{latestResume.parsed_data.skills.slice(0, 4).join(', ')}</p>
+                      <p className="text-sm text-muted-foreground">{latestResume.parsed_data.skills?.slice(0, 4).join(', ')}</p>
                     </div>
                     <Badge variant="success">Active</Badge>
                   </div>
@@ -152,7 +225,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setTab('queue')}>
                   <ListChecks className="h-4 w-4 mr-2" />
-                  Review jobs
+                  Review jobs {queue.length > 0 && `(${queue.length})`}
                 </Button>
                 <Button variant="outline" onClick={() => setTab('applications')}>
                   <History className="h-4 w-4 mr-2" />
@@ -169,7 +242,10 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                 <h1 className="text-2xl font-bold">Resume</h1>
                 <p className="text-muted-foreground mt-1">Upload your latest resume — Aplio will parse and embed it automatically</p>
               </div>
-              <ResumeUploader onUploaded={r => setResumes(prev => [r, ...prev])} />
+              <ResumeUploader onUploaded={r => {
+                setResumes(prev => [r, ...prev])
+                setQueueLoaded(false) // force re-fetch queue after new resume
+              }} />
               {resumes.length > 0 && (
                 <div>
                   <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Your resumes</h2>
@@ -180,7 +256,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm">{r.parsed_data.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {r.parsed_data.skills.slice(0, 3).join(', ')} · {r.parsed_data.experience.length} roles
+                            {r.parsed_data.skills?.slice(0, 3).join(', ')} · {r.parsed_data.experience?.length ?? 0} roles
                           </p>
                         </div>
                         {i === 0 && <Badge variant="success">Active</Badge>}
@@ -210,11 +286,23 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                 <h1 className="text-2xl font-bold">Approval Queue</h1>
                 <p className="text-muted-foreground mt-1">Review AI-matched jobs before Aplio applies. You must approve each one.</p>
               </div>
-              <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
-                <ListChecks className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">No jobs pending approval</p>
-                <p className="text-sm mt-1">Once Aplio finds matches, they&apos;ll appear here for your review.</p>
-              </div>
+              {queueLoading && (
+                <div className="text-center py-12 text-muted-foreground text-sm">Loading matches…</div>
+              )}
+              {!queueLoading && queue.length === 0 && (
+                <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+                  <ListChecks className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">No jobs pending approval</p>
+                  <p className="text-sm mt-1">Upload your resume and Aplio will find matching jobs for you.</p>
+                </div>
+              )}
+              {!queueLoading && queue.length > 0 && (
+                <div className="space-y-4">
+                  {queue.map(app => (
+                    <ApprovalQueueCard key={app.id} application={app} onAction={handleQueueAction} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -225,11 +313,23 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                 <h1 className="text-2xl font-bold">Applications</h1>
                 <p className="text-muted-foreground mt-1">Track every job Aplio has applied to on your behalf</p>
               </div>
-              <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
-                <History className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">No applications yet</p>
-                <p className="text-sm mt-1">Approve jobs in the queue and Aplio will apply for you.</p>
-              </div>
+              {appsLoading && (
+                <div className="text-center py-12 text-muted-foreground text-sm">Loading applications…</div>
+              )}
+              {!appsLoading && applications.length === 0 && (
+                <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+                  <History className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">No applications yet</p>
+                  <p className="text-sm mt-1">Approve jobs in the queue and Aplio will apply for you.</p>
+                </div>
+              )}
+              {!appsLoading && applications.length > 0 && (
+                <div className="space-y-3">
+                  {applications.map(app => (
+                    <ApplicationRow key={app.id} application={app} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

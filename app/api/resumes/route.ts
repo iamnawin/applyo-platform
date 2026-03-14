@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { parseAndStore } from '@/lib/services/resume-service'
 import { getCandidateByUserId } from '@/lib/db/candidates'
 import { getResumesByCandidateId } from '@/lib/db/resumes'
+import { generateMatchesForCandidate } from '@/lib/services/match-service'
 
 // POST /api/resumes — upload PDF, parse it, store embedding
 export async function POST(req: NextRequest) {
@@ -53,6 +54,10 @@ export async function POST(req: NextRequest) {
   // Parse + embed + store
   try {
     const resume = await parseAndStore(candidate.id, pdfText, fileName)
+
+    // Fire-and-forget: generate job matches for this candidate in background
+    generateMatchesForCandidate(candidate.id).catch(() => {})
+
     return NextResponse.json(resume, { status: 201 })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Parse failed'
