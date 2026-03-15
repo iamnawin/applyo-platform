@@ -19,10 +19,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Candidate profile not found' }, { status: 404 })
   }
 
-  const formData = await req.formData()
+  let formData: FormData
+  try {
+    formData = await req.formData()
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to parse form data'
+    return NextResponse.json({ error: msg }, { status: 400 })
+  }
   const file = formData.get('file') as File | null
 
-  if (!file || file.type !== 'application/pdf') {
+  if (!file) {
+    return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
+  }
+  const isPdf = file.type === 'application/pdf' || file.name?.endsWith('.pdf')
+  if (!isPdf) {
     return NextResponse.json({ error: 'A PDF file is required' }, { status: 400 })
   }
 
