@@ -1,6 +1,9 @@
 # Applyo — AI-Powered Job Application Platform
 
-> **DistroKid for jobs.** Upload your resume once. Apply everywhere. Just show up to interviews.
+
+
+
+
 
 Applyo is an AI-powered job application distribution platform. Candidates upload one resume, set preferences, approve a curated job list, and Applyo auto-applies across Naukri, LinkedIn, and Indeed on their behalf. HR companies receive pre-scored, pre-verified profiles.
 
