@@ -22,7 +22,7 @@ export default function LoginPage() {
     setError(null)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError(error.message)
@@ -30,7 +30,8 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard/candidate')
+    const role = data.user?.user_metadata?.role
+    router.push(role === 'company' ? '/dashboard/company' : '/dashboard/candidate')
     router.refresh()
   }
 
@@ -38,7 +39,7 @@ export default function LoginPage() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/callback` },
     })
   }
 

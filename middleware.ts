@@ -38,10 +38,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Already logged in — redirect away from auth pages
-  if (user && (pathname === '/login' || pathname === '/signup')) {
+  // Already logged in — redirect away from auth pages and root
+  if (user && (pathname === '/login' || pathname === '/signup' || pathname === '/')) {
+    const role = user.user_metadata?.role
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard/candidate'
+    url.pathname = role === 'company' ? '/dashboard/company' : '/dashboard/candidate'
     return NextResponse.redirect(url)
   }
 
