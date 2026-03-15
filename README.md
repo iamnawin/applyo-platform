@@ -169,10 +169,10 @@ npm run lint         # ESLint
 
 ## Partnership
 
-Built by **ZeroOrigins AI** (Naveen) in partnership with the Viralbug team.
+Built by **ZeroOrigins AI** (Naveen)
 
 - **AI / Backend / Prompts:** ZeroOrigins AI — Naveen
-- **Frontend / Infra / Sales:** Viralbug team
+- **Frontend / Infra / Sales:**
 - **IP:** ZeroOrigins retains all AI systems, prompts, and embedding logic
 
 ---
