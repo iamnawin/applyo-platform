@@ -199,10 +199,16 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
               </div>
 
               {resumes.length === 0 && (
-                <div className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 p-8 text-center">
-                  <p className="font-semibold text-lg">Start by uploading your resume</p>
-                  <p className="text-muted-foreground text-sm mt-1 mb-4">Aplio will parse it and start finding matching jobs for you</p>
-                  <Button onClick={() => setTab('resume')}>Upload Resume</Button>
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-semibold text-base">Start by uploading your resume</p>
+                    <p className="text-muted-foreground text-sm mt-0.5">Aplio will parse it and start finding matching jobs for you automatically</p>
+                  </div>
+                  <ResumeUploader onUploaded={r => {
+                    setResumes([r])
+                    setQueueLoaded(false)
+                    setTab('queue')
+                  }} />
                 </div>
               )}
 
