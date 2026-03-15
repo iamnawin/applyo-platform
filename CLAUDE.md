@@ -65,103 +65,120 @@ Phase 1 scope:
 ```
 aplio/
 ├── CLAUDE.md                    ← YOU ARE HERE
-├── .claude/
-│   └── skills/
-│       ├── resume-parser.md     ← How to work on the AI parse pipeline
-│       ├── playwright-apply.md  ← How to work on the auto-apply bot
-│       ├── ai-matching.md       ← How to work on the scoring engine
-│       ├── supabase-patterns.md ← DB query patterns and RLS rules
-│       └── component-patterns.md← UI component conventions
-├── .env.local                   ← Never commit. See .env.example
-├── .env.example                 ← Commit this
-├── next.config.ts
+├── README.md
+├── .env.local                   ← Never commit. See .env.local.example
+├── .env.local.example
+├── next.config.mjs
 ├── tailwind.config.ts
 ├── tsconfig.json
+├── middleware.ts                ← Supabase SSR session refresh + route protection
 ├── package.json
+│
+├── .claude/
+│   └── skills/                  ← Read before touching each module
+│       ├── resume-parser.md     ← AI parse pipeline
+│       ├── playwright-apply.md  ← Auto-apply bot
+│       ├── ai-matching.md       ← Scoring engine
+│       ├── supabase-patterns.md ← DB query patterns and RLS rules
+│       └── component-patterns.md← UI component conventions
+│
+├── docs/
+│   ├── Aplio_BRD_v1.0.docx     ← Business requirements
+│   ├── MEMORY.md                ← Manual session changelog
+│   └── flows/
+│       ├── complete user flow.excalidraw
+│       └── Full AI Technical Architecture.excalidraw
+│
+├── app/                         ← Next.js App Router (no src/ prefix)
+│   ├── layout.tsx
+│   ├── globals.css
+│   ├── (auth)/
+│   │   ├── callback/route.ts    ← OAuth PKCE exchange
+│   │   ├── login/page.tsx
+│   │   └── signup/page.tsx
+│   ├── (marketing)/             ← Landing page
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── dashboard/
+│   │   ├── candidate/           ← B2C dashboard
+│   │   │   ├── page.tsx
+│   │   │   └── CandidateDashboardClient.tsx
+│   │   └── company/             ← B2B HR dashboard
+│   │       ├── page.tsx
+│   │       └── CompanyDashboardClient.tsx
+│   └── api/
+│       ├── applications/route.ts
+│       ├── approvals/route.ts   ← CORE: approval queue + auto-apply trigger
+│       ├── companies/route.ts
+│       ├── jobs/route.ts
+│       ├── matches/route.ts
+│       ├── preferences/route.ts
+│       └── resumes/route.ts     ← PDF upload → parse → embed
+│
+├── components/
+│   ├── ui/                      ← shadcn primitives (do not edit)
+│   └── candidate/
+│       ├── ResumeUploader.tsx
+│       ├── ScoreCard.tsx
+│       ├── ApprovalQueueCard.tsx
+│       ├── ApplicationRow.tsx
+│       └── PreferenceForm.tsx
+│
+├── lib/
+│   ├── ai/                      ← All AI calls live here
+│   │   ├── parse-resume.ts      ← READ .claude/skills/resume-parser.md first
+│   │   ├── score-match.ts       ← READ .claude/skills/ai-matching.md first
+│   │   ├── embed-text.ts
+│   │   └── normalize-job.ts
+│   ├── automation/              ← READ .claude/skills/playwright-apply.md first
+│   │   ├── index.ts
+│   │   ├── router.ts
+│   │   └── platforms/
+│   │       ├── naukri.ts
+│   │       ├── linkedin.ts
+│   │       └── indeed.ts
+│   ├── db/                      ← All DB calls live here (READ .claude/skills/supabase-patterns.md first)
+│   │   ├── client.ts            ← Service-role client (bypasses RLS for server ops)
+│   │   ├── candidates.ts
+│   │   ├── resumes.ts
+│   │   ├── jobs.ts
+│   │   ├── applications.ts
+│   │   ├── preferences.ts
+│   │   └── companies.ts
+│   ├── schemas/                 ← Zod schemas for all API I/O
+│   │   ├── candidate.ts
+│   │   ├── resume.ts
+│   │   ├── job.ts
+│   │   ├── application.ts
+│   │   ├── preference.ts
+│   │   └── company.ts
+│   ├── services/                ← Business logic (orchestrates db/ + ai/)
+│   │   ├── match-service.ts
+│   │   ├── resume-service.ts
+│   │   ├── approval-service.ts
+│   │   ├── application-service.ts
+│   │   ├── job-service.ts
+│   │   └── company-service.ts
+│   ├── supabase/                ← Auth-aware SSR clients (cookie-based)
+│   │   ├── client.ts            ← Browser client (use in Client Components)
+│   │   └── server.ts            ← Server client (use in Server Components / API routes)
+│   ├── types/
+│   │   ├── database.ts          ← Generated Supabase types
+│   │   └── index.ts
+│   └── utils/
+│       └── index.ts             ← cn() and other shared helpers
 │
 ├── supabase/
 │   ├── migrations/
-│   │   ├── 001_init_schema.sql
-│   │   ├── 002_pgvector.sql
-│   │   └── 003_rls_policies.sql
-│   ├── functions/
-│   │   ├── parse-resume/
-│   │   └── match-jobs/
-│   └── seed.sql
+│   │   ├── 001_init.sql
+│   │   └── 002_indexes.sql
+│   └── functions/
+│       ├── parse-resume/
+│       ├── route-application/
+│       └── score-candidate/
 │
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx             ← Landing page
-│   │   ├── (auth)/
-│   │   │   ├── login/page.tsx
-│   │   │   └── register/page.tsx
-│   │   ├── (candidate)/         ← B2C side
-│   │   │   ├── dashboard/page.tsx
-│   │   │   ├── resume/page.tsx
-│   │   │   ├── preferences/page.tsx
-│   │   │   ├── matches/page.tsx
-│   │   │   └── queue/page.tsx   ← CORE FEATURE
-│   │   ├── (hr)/                ← B2B side
-│   │   │   ├── dashboard/page.tsx
-│   │   │   ├── jobs/page.tsx
-│   │   │   └── candidates/[id]/page.tsx
-│   │   └── api/
-│   │       ├── resume/upload/route.ts
-│   │       ├── resume/parse/route.ts
-│   │       ├── jobs/fetch/route.ts
-│   │       ├── jobs/match/route.ts
-│   │       ├── apply/route.ts
-│   │       └── webhooks/n8n/route.ts
-│   │
-│   ├── components/
-│   │   ├── ui/                  ← shadcn (auto-generated, do not edit)
-│   │   ├── candidate/
-│   │   │   ├── ResumeUploader.tsx
-│   │   │   ├── ScoreCard.tsx
-│   │   │   ├── ApprovalQueueCard.tsx
-│   │   │   ├── ApplicationRow.tsx
-│   │   │   └── PreferenceForm.tsx
-│   │   ├── hr/
-│   │   │   ├── CandidateCard.tsx
-│   │   │   ├── JDForm.tsx
-│   │   │   └── PipelineTable.tsx
-│   │   └── shared/
-│   │       ├── Navbar.tsx
-│   │       ├── Sidebar.tsx
-│   │       └── LoadingSpinner.tsx
-│   │
-│   ├── lib/
-│   │   ├── ai/
-│   │   │   ├── parse-resume.ts  ← READ skills/resume-parser.md first
-│   │   │   ├── parse-jd.ts
-│   │   │   ├── embed.ts
-│   │   │   ├── match.ts         ← READ skills/ai-matching.md first
-│   │   │   └── prompts/
-│   │   │       ├── resume.prompt.ts
-│   │   │       └── jd.prompt.ts
-│   │   ├── db/
-│   │   │   ├── candidates.ts    ← READ skills/supabase-patterns.md first
-│   │   │   ├── resumes.ts
-│   │   │   ├── jobs.ts
-│   │   │   └── applications.ts
-│   │   ├── automation/          ← READ skills/playwright-apply.md first
-│   │   │   ├── apply-naukri.ts
-│   │   │   ├── apply-linkedin.ts
-│   │   │   └── apply-indeed.ts
-│   │   └── utils/
-│   │       ├── supabase.ts
-│   │       ├── openai.ts
-│   │       └── validators.ts
-│   │
-│   └── types/
-│       ├── candidate.ts
-│       ├── job.ts
-│       ├── application.ts
-│       └── index.ts
-│
-└── automation/                  ← Separate Node process
-    ├── package.json
+└── playwright/
+    └── playwright.config.ts
     ├── runner.ts
     └── platforms/
         ├── naukri.ts
