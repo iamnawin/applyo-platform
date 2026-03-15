@@ -19,8 +19,8 @@ export default async function CandidateDashboard() {
         full_name: user.user_metadata?.full_name ?? '',
         email: user.email ?? '',
       })
-    } catch {
-      // upsert failed — proceed with null; upload will surface the error
+    } catch (err) {
+      console.error('[CandidateDashboard] upsertCandidate failed:', err)
     }
   }
 

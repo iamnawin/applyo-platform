@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Upload PDF to Supabase Storage
-  const fileName = `${candidate.id}/${Date.now()}.pdf`
+  const fileName = `${user.id}/${Date.now()}.pdf`
   const { error: uploadError } = await supabase.storage
     .from('resumes')
     .upload(fileName, file, { contentType: 'application/pdf', upsert: false })
