@@ -1,8 +1,6 @@
-# Applyo — AI-Powered Job Application Platform
+# Applyo — AI-Powered Job Application Platform 
 
-> **DistroKid for jobs.** Upload your resume once. Apply everywhere. Just show up to interviews.
-
-Applyo is an AI-powered job application distribution platform. Candidates upload one resume, set preferences, approve a curated job list, and Applyo auto-applies across Naukri, LinkedIn, and Indeed on their behalf. HR companies receive pre-scored, pre-verified profiles.
+Applyo is an AI-powered job application distribution platform. Apply to 100 jobs in the time it takes to apply one.. Candidates upload one resume, set preferences, approve a curated job list, and Applyo auto-applies across Naukri, LinkedIn, and Indeed on their behalf. HR companies receive pre-scored, pre-verified profiles.
 
 ---
 
@@ -166,10 +164,10 @@ npm run lint         # ESLint
 
 ## Partnership
 
-Built by **ZeroOrigins AI** (Naveen) in partnership with the Viralbug team.
+Built by **ZeroOrigins AI** (Naveen)
 
 - **AI / Backend / Prompts:** ZeroOrigins AI — Naveen
-- **Frontend / Infra / Sales:** Viralbug team
+- **Frontend / Infra / Sales:**
 - **IP:** ZeroOrigins retains all AI systems, prompts, and embedding logic
 
 ---
