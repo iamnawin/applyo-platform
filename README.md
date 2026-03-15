@@ -1,11 +1,6 @@
-# Applyo — AI-Powered Job Application Platform
+# Applyo — AI-Powered Job Application Platform 
 
-
-
-
-
-
-Applyo is an AI-powered job application distribution platform. Candidates upload one resume, set preferences, approve a curated job list, and Applyo auto-applies across Naukri, LinkedIn, and Indeed on their behalf. HR companies receive pre-scored, pre-verified profiles.
+Applyo is an AI-powered job application distribution platform. Apply to 100 jobs in the time it takes to apply one.. Candidates upload one resume, set preferences, approve a curated job list, and Applyo auto-applies across Naukri, LinkedIn, and Indeed on their behalf. HR companies receive pre-scored, pre-verified profiles.
 
 ---
 
