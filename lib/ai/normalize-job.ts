@@ -29,7 +29,7 @@ export async function normalizeJob(rawDescription: string): Promise<NormalizedJo
     // Default: Gemini
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.0-flash',
       generationConfig: { responseMimeType: 'application/json' },
     })
     const result = await model.generateContent(`${SYSTEM_PROMPT}\n\nJob description:\n${rawDescription}`)
