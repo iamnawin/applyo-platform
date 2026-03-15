@@ -16,15 +16,9 @@ export async function embedText(text: string): Promise<number[]> {
   }
 
   // Default: Gemini
-  // Use v1 REST API directly — text-embedding-004 is not available on v1beta
-  const apiKey = process.env.GOOGLE_AI_API_KEY!
-  const url = `https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key=${apiKey}`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'models/text-embedding-004', content: { parts: [{ text }] } }),
-  })
-  if (!res.ok) throw new Error(`Gemini embed failed: ${await res.text()}`)
-  const json = await res.json() as { embedding: { values: number[] } }
-  return json.embedding.values
+  // embedding-001 — 768-dim, works on v1beta, widely available
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
+  const model = genAI.getGenerativeModel({ model: 'embedding-001' })
+  const result = await model.embedContent(text)
+  return result.embedding.values
 }
