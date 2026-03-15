@@ -7,6 +7,5 @@ export async function registerCompany(userId: string, name: string, website?: st
 }
 
 export async function postJob(rawDescription: string, companyId: string): Promise<Job> {
-  // TODO: attach companyId to the job after ingest
-  return ingestJob(rawDescription, 'direct', undefined)
+  return ingestJob(rawDescription, 'direct', undefined, companyId)
 }

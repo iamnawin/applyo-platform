@@ -13,6 +13,17 @@ export async function listJobs(limit = 50): Promise<Job[]> {
   return (data ?? []) as Job[]
 }
 
+export async function listJobsByCompany(companyId: string): Promise<Job[]> {
+  const db = createServerClient()
+  const { data, error } = await db
+    .from('jobs')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as Job[]
+}
+
 export async function createJob(job: Omit<Job, 'id' | 'created_at'>): Promise<Job> {
   const db = createServerClient()
   const { data, error } = await db.from('jobs').insert(job).select().single()

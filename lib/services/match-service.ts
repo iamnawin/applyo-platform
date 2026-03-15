@@ -18,7 +18,7 @@ export async function generateMatchesForCandidate(candidateId: string): Promise<
       const app = await upsertApplication({
         candidate_id: candidateId,
         job_id: job.id,
-        match_score: score.score,
+        match_score: score.score / 100, // normalize to 0–1 for storage; UI multiplies by 100
         status: 'pending',
         applied_at: null,
       })
