@@ -11,7 +11,19 @@ export async function scoreMatch(resume: ParsedResume, job: NormalizedJob): Prom
   const userContent = `CANDIDATE:\n${JSON.stringify(resume)}\n\nJOB:\n${JSON.stringify(job)}`
   let raw: unknown
 
-  if (provider === 'openai') {
+  if (provider === 'groq') {
+    const OpenAI = (await import('openai')).default
+    const groq = new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' })
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ],
+    })
+    raw = JSON.parse(completion.choices[0].message.content ?? '{}')
+  } else if (provider === 'openai') {
     const OpenAI = (await import('openai')).default
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const completion = await openai.chat.completions.create({
