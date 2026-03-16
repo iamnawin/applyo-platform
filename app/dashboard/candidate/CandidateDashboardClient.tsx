@@ -12,12 +12,13 @@ import { ApplicationRow } from '@/components/candidate/ApplicationRow'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import type { Resume, Candidate, Application, Job } from '@/lib/types'
+import type { Resume, Candidate, Application, Job, Preference } from '@/lib/types'
 
 interface Props {
   user: { id: string; email: string; name: string }
   candidate: Candidate | null
   initialResumes: Resume[]
+  initialPreferences: Preference | null
 }
 
 type Tab = 'overview' | 'resume' | 'preferences' | 'queue' | 'applications'
@@ -32,10 +33,11 @@ const NAV = [
 
 type ApplicationWithJob = Application & { job: Job }
 
-export function CandidateDashboardClient({ user, candidate, initialResumes }: Props) {
+export function CandidateDashboardClient({ user, candidate, initialResumes, initialPreferences }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('overview')
   const [resumes, setResumes] = useState<Resume[]>(initialResumes)
+  const [preferences, setPreferences] = useState<Preference | null>(initialPreferences)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const [queue, setQueue] = useState<ApplicationWithJob[]>([])
@@ -187,9 +189,9 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                 />
                 <StatCard
                   label="Preferences"
-                  value={candidate ? 'Set' : 'Not set'}
-                  sub={candidate ? 'Aplio is finding jobs' : 'Set your target roles'}
-                  accent={!!candidate}
+                  value={preferences ? 'Set' : 'Not set'}
+                  sub={preferences ? 'Aplio is finding jobs' : 'Set your target roles'}
+                  accent={!!preferences}
                 />
                 <StatCard
                   label="Queue"
@@ -298,7 +300,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                 <h1 className="text-2xl font-bold">Preferences</h1>
                 <p className="text-muted-foreground mt-1">Tell Aplio what jobs to find and apply to on your behalf</p>
               </div>
-              <PreferenceForm onSaved={() => {}} />
+              <PreferenceForm initial={preferences ?? undefined} onSaved={setPreferences} />
             </div>
           )}
 

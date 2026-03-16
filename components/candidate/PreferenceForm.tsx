@@ -12,7 +12,7 @@ const JOB_TYPES = ['full-time', 'part-time', 'contract', 'remote'] as const
 
 interface Props {
   initial?: Partial<Preference>
-  onSaved: () => void
+  onSaved: (prefs: Preference) => void
 }
 
 export function PreferenceForm({ initial, onSaved }: Props) {
@@ -72,8 +72,9 @@ export function PreferenceForm({ initial, onSaved }: Props) {
         const data = await res.json()
         throw new Error(data.error ?? 'Save failed')
       }
+      const savedPreferences = await res.json() as Preference
       setSaved(true)
-      onSaved()
+      onSaved(savedPreferences)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed')
