@@ -4,6 +4,7 @@ import { parseAndStore } from '@/lib/services/resume-service'
 import { getCandidateByUserId } from '@/lib/db/candidates'
 import { getResumesByCandidateId } from '@/lib/db/resumes'
 import { generateMatchesForCandidate } from '@/lib/services/match-service'
+import { AIProviderError, getAIErrorMessage } from '@/lib/ai/providers'
 
 // POST /api/resumes — upload PDF, parse it, store embedding
 export async function POST(req: NextRequest) {
@@ -70,7 +71,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(resume, { status: 201 })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Parse failed'
+    console.error('Resume upload failed', {
+      candidateId: candidate.id,
+      fileName,
+      error: err instanceof Error ? err.message : 'Unknown error',
+      attempts: err instanceof AIProviderError ? err.attempts : undefined,
+      cause: err instanceof AIProviderError && err.cause instanceof Error ? err.cause.message : undefined,
+    })
+
+    const message = getAIErrorMessage(err) ?? (err instanceof Error ? err.message : 'Parse failed')
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
