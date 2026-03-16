@@ -24,6 +24,7 @@ export interface Database {
           storage_path: string
           parsed_data: Record<string, unknown>
           embedding: number[] | null
+          processing_status: 'ready' | 'pending_ai' | 'failed_ai'
           created_at: string
         }
         Insert: Omit<Database['public']['Tables']['resumes']['Row'], 'id' | 'created_at'>

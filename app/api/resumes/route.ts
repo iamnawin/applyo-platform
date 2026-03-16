@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { parseAndStore } from '@/lib/services/resume-service'
+import { storePendingResume } from '@/lib/services/resume-fallback'
 import { getCandidateByUserId } from '@/lib/db/candidates'
 import { getResumesByCandidateId } from '@/lib/db/resumes'
 import { generateMatchesForCandidate } from '@/lib/services/match-service'
@@ -78,6 +79,17 @@ export async function POST(req: NextRequest) {
       attempts: err instanceof AIProviderError ? err.attempts : undefined,
       cause: err instanceof AIProviderError && err.cause instanceof Error ? err.cause.message : undefined,
     })
+
+    if (err instanceof AIProviderError) {
+      const pendingResume = await storePendingResume(candidate.id, fileName)
+      return NextResponse.json(
+        {
+          ...pendingResume,
+          notice: 'Resume uploaded. AI parsing is pending and will need to be retried later.',
+        },
+        { status: 201 },
+      )
+    }
 
     const message = getAIErrorMessage(err) ?? (err instanceof Error ? err.message : 'Parse failed')
     return NextResponse.json({ error: message }, { status: 500 })
