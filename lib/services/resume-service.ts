@@ -11,5 +11,6 @@ export async function parseAndStore(candidateId: string, pdfText: string, storag
     storage_path: storagePath,
     parsed_data: parsed,
     embedding,
+    processing_status: 'ready',
   })
 }

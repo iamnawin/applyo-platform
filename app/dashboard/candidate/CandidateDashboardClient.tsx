@@ -38,12 +38,10 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
   const [resumes, setResumes] = useState<Resume[]>(initialResumes)
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Queue state
   const [queue, setQueue] = useState<ApplicationWithJob[]>([])
   const [queueLoaded, setQueueLoaded] = useState(false)
   const [queueLoading, setQueueLoading] = useState(false)
 
-  // Applications history state
   const [applications, setApplications] = useState<ApplicationWithJob[]>([])
   const [appsLoaded, setAppsLoaded] = useState(false)
   const [appsLoading, setAppsLoading] = useState(false)
@@ -77,7 +75,6 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
     if (tab === 'applications') loadApplications()
   }, [tab, loadQueue, loadApplications])
 
-  // Reload queue count on overview
   useEffect(() => {
     if (tab === 'overview') {
       fetch('/api/approvals').then(r => r.ok ? r.json() : []).then(setQueue).catch(() => {})
@@ -95,6 +92,11 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
   }
 
   const latestResume = resumes[0]
+  const latestResumeSub = !latestResume
+    ? 'Upload to get started'
+    : latestResume.processing_status === 'ready'
+      ? 'Parsed & ready'
+      : 'Stored, parsing pending'
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -102,13 +104,14 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
         <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Sidebar */}
-      <aside className={`
+      <aside
+        className={`
         fixed md:relative z-30 md:z-auto flex-shrink-0 w-64 h-full
         border-r bg-card flex flex-col
         transition-transform duration-200
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
+      `}
+      >
         <div className="flex items-center justify-between p-6 border-b">
           <Link href="/" className="text-xl font-bold tracking-tight">Aplio</Link>
           <button className="md:hidden" onClick={() => setMobileOpen(false)}>
@@ -159,7 +162,6 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 overflow-y-auto">
         <div className="md:hidden flex items-center gap-3 p-4 border-b sticky top-0 bg-background z-10">
           <button onClick={() => setMobileOpen(true)}>
@@ -169,7 +171,6 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
         </div>
 
         <div className="max-w-3xl mx-auto p-6 space-y-8">
-          {/* OVERVIEW */}
           {tab === 'overview' && (
             <div className="space-y-6">
               <div>
@@ -181,7 +182,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                 <StatCard
                   label="Resume"
                   value={resumes.length > 0 ? 'Uploaded' : 'Not uploaded'}
-                  sub={latestResume ? 'Parsed & ready' : 'Upload to get started'}
+                  sub={latestResumeSub}
                   accent={resumes.length > 0}
                 />
                 <StatCard
@@ -218,10 +219,18 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                   <div className="rounded-lg border p-4 flex items-center gap-4">
                     <FileText className="h-8 w-8 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium">{latestResume.parsed_data.name}</p>
-                      <p className="text-sm text-muted-foreground">{latestResume.parsed_data.skills?.slice(0, 4).join(', ')}</p>
+                      <p className="font-medium">
+                        {latestResume.processing_status === 'ready' ? latestResume.parsed_data.name : 'Resume uploaded'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {latestResume.processing_status === 'ready'
+                          ? latestResume.parsed_data.skills?.slice(0, 4).join(', ')
+                          : 'Stored safely. AI parsing is pending until provider credits are available.'}
+                      </p>
                     </div>
-                    <Badge variant="success">Active</Badge>
+                    <Badge variant={latestResume.processing_status === 'ready' ? 'success' : 'warning'}>
+                      {latestResume.processing_status === 'ready' ? 'Active' : 'Pending AI'}
+                    </Badge>
                   </div>
                 </div>
               )}
@@ -241,40 +250,48 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
             </div>
           )}
 
-          {/* RESUME */}
           {tab === 'resume' && (
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">Resume</h1>
-                <p className="text-muted-foreground mt-1">Upload your latest resume — Aplio will parse and embed it automatically</p>
+                <p className="text-muted-foreground mt-1">Upload your latest resume. If AI is unavailable, Aplio will store it and parse it later.</p>
               </div>
               <ResumeUploader onUploaded={r => {
                 setResumes(prev => [r, ...prev])
-                setQueueLoaded(false) // force re-fetch queue after new resume
+                setQueueLoaded(false)
               }} />
               {resumes.length > 0 && (
                 <div>
                   <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Your resumes</h2>
                   <div className="space-y-3">
-                    {resumes.map((r, i) => (
-                      <div key={r.id} className="rounded-lg border p-4 flex items-center gap-4">
-                        <FileText className="h-6 w-6 text-primary shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{r.parsed_data.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {r.parsed_data.skills?.slice(0, 3).join(', ')} · {r.parsed_data.experience?.length ?? 0} roles
-                          </p>
+                    {resumes.map((resume, i) => {
+                      const description = resume.processing_status === 'ready'
+                        ? `${resume.parsed_data.skills?.slice(0, 3).join(', ')} · ${resume.parsed_data.experience?.length ?? 0} roles`
+                        : 'Stored safely. Parsing pending until AI is available.'
+
+                      return (
+                        <div key={resume.id} className="rounded-lg border p-4 flex items-center gap-4">
+                          <FileText className="h-6 w-6 text-primary shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">
+                              {resume.processing_status === 'ready' ? resume.parsed_data.name : 'Resume uploaded'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{description}</p>
+                          </div>
+                          {i === 0 && (
+                            <Badge variant={resume.processing_status === 'ready' ? 'success' : 'warning'}>
+                              {resume.processing_status === 'ready' ? 'Active' : 'Pending AI'}
+                            </Badge>
+                          )}
                         </div>
-                        {i === 0 && <Badge variant="success">Active</Badge>}
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* PREFERENCES */}
           {tab === 'preferences' && (
             <div className="space-y-6">
               <div>
@@ -285,7 +302,6 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
             </div>
           )}
 
-          {/* QUEUE */}
           {tab === 'queue' && (
             <div className="space-y-6">
               <div>
@@ -293,7 +309,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                 <p className="text-muted-foreground mt-1">Review AI-matched jobs before Aplio applies. You must approve each one.</p>
               </div>
               {queueLoading && (
-                <div className="text-center py-12 text-muted-foreground text-sm">Loading matches…</div>
+                <div className="text-center py-12 text-muted-foreground text-sm">Loading matches...</div>
               )}
               {!queueLoading && queue.length === 0 && (
                 <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
@@ -312,7 +328,6 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
             </div>
           )}
 
-          {/* APPLICATIONS */}
           {tab === 'applications' && (
             <div className="space-y-6">
               <div>
@@ -320,7 +335,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes }: Pr
                 <p className="text-muted-foreground mt-1">Track every job Aplio has applied to on your behalf</p>
               </div>
               {appsLoading && (
-                <div className="text-center py-12 text-muted-foreground text-sm">Loading applications…</div>
+                <div className="text-center py-12 text-muted-foreground text-sm">Loading applications...</div>
               )}
               {!appsLoading && applications.length === 0 && (
                 <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">

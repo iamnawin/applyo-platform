@@ -6,6 +6,8 @@ export type { PreferenceInput as Preference } from '@/lib/schemas/preference'
 export type { CandidateInput as Candidate } from '@/lib/schemas/candidate'
 export type { CompanyInput as Company } from '@/lib/schemas/company'
 
+export type ResumeProcessingStatus = 'ready' | 'pending_ai' | 'failed_ai'
+
 // DB row types (extend as Supabase types are generated)
 export interface Resume {
   id: string
@@ -13,6 +15,7 @@ export interface Resume {
   storage_path: string
   parsed_data: ParsedResume
   embedding: number[] | null
+  processing_status: ResumeProcessingStatus
   created_at: string
 }
 

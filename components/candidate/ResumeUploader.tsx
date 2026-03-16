@@ -17,6 +17,7 @@ export function ResumeUploader({ onUploaded }: Props) {
   const [dragging, setDragging] = useState(false)
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
   const [fileName, setFileName] = useState('')
 
   async function upload(file: File) {
@@ -34,6 +35,7 @@ export function ResumeUploader({ onUploaded }: Props) {
     setFileName(file.name)
     setStatus('uploading')
     setErrorMsg('')
+    setSuccessMsg('')
 
     const form = new FormData()
     form.append('file', file)
@@ -47,6 +49,11 @@ export function ResumeUploader({ onUploaded }: Props) {
       }
 
       setStatus('success')
+      setSuccessMsg(
+        typeof data.notice === 'string'
+          ? data.notice
+          : 'Resume uploaded successfully!',
+      )
       onUploaded(data as Resume)
     } catch (err) {
       setStatus('error')
@@ -93,7 +100,7 @@ export function ResumeUploader({ onUploaded }: Props) {
           {status === 'success' && (
             <>
               <CheckCircle className="h-10 w-10 text-green-600" />
-              <p className="text-sm font-medium text-green-700">Resume uploaded successfully!</p>
+              <p className="text-sm font-medium text-green-700">{successMsg}</p>
               <p className="text-xs text-muted-foreground">{fileName}</p>
               <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); setStatus('idle') }}>
                 Upload another

@@ -8,7 +8,10 @@ export async function generateMatchesForCandidate(candidateId: string): Promise<
   const resumes = await getResumesByCandidateId(candidateId)
   if (!resumes.length) return []
 
-  const resume = resumes[0].parsed_data
+  const activeResume = resumes.find(resume => resume.processing_status === 'ready')
+  if (!activeResume) return []
+
+  const resume = activeResume.parsed_data
   const jobs = await listJobs()
   const results: Application[] = []
 
