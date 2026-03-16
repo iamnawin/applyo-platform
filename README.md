@@ -45,8 +45,8 @@ Phase 1 scope (only what's being built now):
 | Styling | TailwindCSS + shadcn/ui |
 | Backend | Supabase Edge Functions (Deno) |
 | Database | Supabase PostgreSQL + pgvector |
-| AI Parsing | OpenAI gpt-4o-mini |
-| Embeddings | text-embedding-3-small (1536 dims) |
+| AI Parsing | Gemini 2.0 Flash with OpenAI/Groq fallback |
+| Embeddings | Gemini text-embedding-004 (768 dims) |
 | Automation | Playwright (Node.js) |
 | Orchestration | n8n (self-hosted) |
 | Auth | Supabase Auth (Email + Google OAuth) |
@@ -95,7 +95,9 @@ applyo/
 ### Prerequisites
 - Node.js 18+
 - Supabase project (with pgvector enabled)
-- OpenAI API key
+- Google Gemini API key
+- Optional OpenAI API key for text fallback
+- Optional Groq API key for text fallback
 
 ### Setup
 
@@ -125,8 +127,22 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
-# OpenAI
+# Google Gemini
+GOOGLE_AI_API_KEY=
+
+# OpenAI (optional text fallback)
 OPENAI_API_KEY=
+
+# Groq (optional text fallback)
+GROQ_API_KEY=
+
+# AI provider order
+AI_TEXT_PROVIDER_ORDER=gemini,openai,groq
+AI_EMBEDDING_PROVIDER_ORDER=gemini
+
+# Backward-compatible single-provider shorthands
+AI_TEXT_PROVIDER=gemini
+AI_EMBEDDING_PROVIDER=gemini
 
 # Resend (email)
 RESEND_API_KEY=
@@ -149,6 +165,14 @@ npm run build        # Production build
 npm run type-check   # TypeScript check (no emit)
 npm run lint         # ESLint
 ```
+
+## AI Provider Behavior
+
+- Text tasks use an ordered fallback chain from `AI_TEXT_PROVIDER_ORDER`.
+- Providers without configured API keys are skipped automatically.
+- Retryable provider failures such as quota, rate-limit, or temporary unavailability fall through to the next configured provider.
+- Embeddings are standardized on Gemini `text-embedding-004` because the current Supabase schema stores `vector(768)`.
+- OpenAI embeddings are intentionally disabled until the database schema is migrated to 1536 dimensions.
 
 ---
 

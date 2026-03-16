@@ -10,6 +10,8 @@ interface Props {
   onUploaded: (resume: Resume) => void
 }
 
+const GENERIC_UPLOAD_ERROR = 'AI parsing is temporarily unavailable. Please try again shortly.'
+
 export function ResumeUploader({ onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
@@ -48,7 +50,9 @@ export function ResumeUploader({ onUploaded }: Props) {
       onUploaded(data as Resume)
     } catch (err) {
       setStatus('error')
-      setErrorMsg(err instanceof Error ? err.message : 'Upload failed')
+      const message = err instanceof Error ? err.message : 'Upload failed'
+      const normalizedMessage = message.includes('quota') || message.includes('429') ? GENERIC_UPLOAD_ERROR : message
+      setErrorMsg(normalizedMessage)
     }
   }
 
