@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getAuthCallbackUrl } from '@/lib/supabase/app-url'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,6 +31,12 @@ export default function LoginPage() {
       return
     }
 
+    if (data.user && !data.session) {
+      setError('Please confirm your email before signing in.')
+      setLoading(false)
+      return
+    }
+
     const role = data.user?.user_metadata?.role
     router.push(role === 'company' ? '/dashboard/company' : '/dashboard/candidate')
     router.refresh()
@@ -39,7 +46,7 @@ export default function LoginPage() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/callback` },
+      options: { redirectTo: getAuthCallbackUrl() },
     })
   }
 

@@ -155,6 +155,13 @@ AUTOMATION_SERVICE_URL=http://localhost:3001
 AUTOMATION_API_KEY=
 ```
 
+Supabase Auth URL Configuration must match your app domains:
+
+- Site URL: `https://your-app-domain`
+- Additional Redirect URLs:
+- `https://your-app-domain/callback`
+- `http://localhost:3000/callback`
+
 ---
 
 ## Development
