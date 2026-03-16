@@ -173,6 +173,46 @@ function createGeminiClient() {
   return new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
 }
 
+async function generateGeminiEmbedding(text: string): Promise<number[]> {
+  const apiKey = process.env.GOOGLE_AI_API_KEY
+  if (!apiKey) {
+    throw new AIProviderError('GOOGLE_AI_API_KEY is not set.', 'configuration_error')
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'models/gemini-embedding-001',
+        content: {
+          parts: [{ text }],
+        },
+        taskType: 'SEMANTIC_SIMILARITY',
+        outputDimensionality: GEMINI_EMBEDDING_DIMENSIONS,
+      }),
+    },
+  )
+
+  const payload = await response.json().catch(() => null) as
+    | { embedding?: { values?: number[] }; error?: { message?: string } }
+    | null
+
+  if (!response.ok) {
+    throw new Error(payload?.error?.message ?? `Gemini embedding request failed with status ${response.status}`)
+  }
+
+  const embedding = payload?.embedding?.values
+  if (!Array.isArray(embedding)) {
+    throw new AIProviderError('Gemini embedding response was missing vector values.', 'invalid_response')
+  }
+
+  return embedding
+}
+
 async function generateJsonWithTextProvider(
   provider: TextProvider,
   systemPrompt: string,
@@ -268,9 +308,8 @@ function validateEmbeddingDimensions(provider: EmbeddingProvider, embedding: num
 
 async function generateEmbeddingWithProvider(provider: EmbeddingProvider, text: string): Promise<number[]> {
   if (provider === 'gemini') {
-    const model = createGeminiClient().getGenerativeModel({ model: 'text-embedding-004' })
-    const response = await model.embedContent(text)
-    return validateEmbeddingDimensions(provider, response.embedding.values)
+    const embedding = await generateGeminiEmbedding(text)
+    return validateEmbeddingDimensions(provider, embedding)
   }
 
   if ((OPENAI_EMBEDDING_DIMENSIONS as number) !== GEMINI_EMBEDDING_DIMENSIONS) {
