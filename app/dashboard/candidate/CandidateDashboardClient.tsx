@@ -32,6 +32,11 @@ const NAV = [
 ] as const
 
 type ApplicationWithJob = Application & { job: Job }
+type SuggestedJob = {
+  job: Job
+  score: number
+  reasons: string[]
+}
 
 export function CandidateDashboardClient({ user, candidate, initialResumes, initialPreferences }: Props) {
   const router = useRouter()
@@ -43,6 +48,8 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
   const [queue, setQueue] = useState<ApplicationWithJob[]>([])
   const [queueLoaded, setQueueLoaded] = useState(false)
   const [queueLoading, setQueueLoading] = useState(false)
+  const [suggestedJobs, setSuggestedJobs] = useState<SuggestedJob[]>([])
+  const [suggestedLoading, setSuggestedLoading] = useState(false)
 
   const [applications, setApplications] = useState<ApplicationWithJob[]>([])
   const [appsLoaded, setAppsLoaded] = useState(false)
@@ -80,6 +87,12 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
   useEffect(() => {
     if (tab === 'overview') {
       fetch('/api/approvals').then(r => r.ok ? r.json() : []).then(setQueue).catch(() => {})
+      setSuggestedLoading(true)
+      fetch('/api/matches')
+        .then(r => r.ok ? r.json() : [])
+        .then(data => { if (Array.isArray(data)) setSuggestedJobs(data) })
+        .catch(() => {})
+        .finally(() => setSuggestedLoading(false))
     }
   }, [tab])
 
@@ -238,6 +251,41 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
               )}
 
               <Separator />
+
+              <div className="space-y-3">
+                <div>
+                  <p className="font-semibold text-base">Suggested jobs</p>
+                  <p className="text-muted-foreground text-sm mt-0.5">Simple rule-based suggestions from stored jobs across sources.</p>
+                </div>
+                {suggestedLoading ? (
+                  <div className="text-sm text-muted-foreground">Loading suggestions...</div>
+                ) : suggestedJobs.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                    No suggestions yet. Add job postings and preferences to start seeing matches.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {suggestedJobs.slice(0, 4).map(suggestion => (
+                      <div key={suggestion.job.id} className="rounded-lg border p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="font-medium">{suggestion.job.normalized_data.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {suggestion.job.normalized_data.company} · {suggestion.job.normalized_data.location ?? 'Remote'}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {suggestion.reasons.join(' · ') || 'General profile fit'}
+                            </p>
+                          </div>
+                          <Badge variant={suggestion.score >= 70 ? 'success' : suggestion.score >= 50 ? 'warning' : 'secondary'}>
+                            {suggestion.score}% fit
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setTab('queue')}>

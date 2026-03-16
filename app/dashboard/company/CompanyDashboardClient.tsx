@@ -38,22 +38,30 @@ interface CandidateProfile {
   }
 }
 
+const EMPTY_JOB_FORM = {
+  title: '',
+  company: '',
+  location: '',
+  type: 'full-time',
+  description: '',
+  skills: '',
+  source: 'manual',
+  source_url: '',
+}
+
 export function CompanyDashboardClient({ user }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('overview')
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Jobs state
   const [jobs, setJobs] = useState<Job[]>([])
   const [jobsLoading, setJobsLoading] = useState(false)
 
-  // Post job modal state
   const [showPostForm, setShowPostForm] = useState(false)
-  const [jdText, setJdText] = useState('')
+  const [jobForm, setJobForm] = useState(EMPTY_JOB_FORM)
   const [posting, setPosting] = useState(false)
   const [postError, setPostError] = useState('')
 
-  // Candidates state
   const [candidates, setCandidates] = useState<CandidateProfile[]>([])
   const [candidatesLoading, setCandidatesLoading] = useState(false)
 
@@ -75,17 +83,31 @@ export function CompanyDashboardClient({ user }: Props) {
   }, [tab])
 
   async function handlePostJob() {
-    if (jdText.trim().length < 50) {
+    if (jobForm.title.trim().length < 2 || jobForm.company.trim().length < 2) {
+      setPostError('Please add a title and company name')
+      return
+    }
+    if (jobForm.description.trim().length < 50) {
       setPostError('Please enter a job description (min 50 characters)')
       return
     }
+
     setPosting(true)
     setPostError('')
+
     try {
       const res = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: jdText }),
+        body: JSON.stringify({
+          ...jobForm,
+          location: jobForm.location || undefined,
+          source_url: jobForm.source_url || undefined,
+          skills: jobForm.skills
+            .split(',')
+            .map(skill => skill.trim())
+            .filter(Boolean),
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -93,10 +115,10 @@ export function CompanyDashboardClient({ user }: Props) {
         return
       }
       setJobs(prev => [data, ...prev])
-      setJdText('')
+      setJobForm(EMPTY_JOB_FORM)
       setShowPostForm(false)
     } catch {
-      setPostError('Network error — please try again')
+      setPostError('Network error. Please try again')
     } finally {
       setPosting(false)
     }
@@ -109,7 +131,7 @@ export function CompanyDashboardClient({ user }: Props) {
   }
 
   const avgScore = candidates.length
-    ? Math.round(candidates.reduce((s, c) => s + c.match_score, 0) / candidates.length * 100)
+    ? Math.round(candidates.reduce((sum, candidate) => sum + candidate.match_score, 0) / candidates.length * 100)
     : null
 
   return (
@@ -118,12 +140,14 @@ export function CompanyDashboardClient({ user }: Props) {
         <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      <aside className={`
+      <aside
+        className={`
         fixed md:relative z-30 md:z-auto flex-shrink-0 w-64 h-full
         border-r bg-card flex flex-col
         transition-transform duration-200
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
+      `}
+      >
         <div className="flex items-center justify-between p-6 border-b">
           <span className="text-xl font-bold tracking-tight">Aplio <span className="text-xs font-normal text-muted-foreground">HR</span></span>
           <button className="md:hidden" onClick={() => setMobileOpen(false)}>
@@ -177,32 +201,30 @@ export function CompanyDashboardClient({ user }: Props) {
         </div>
 
         <div className="max-w-4xl mx-auto p-6 space-y-8">
-
-          {/* OVERVIEW TAB */}
           {tab === 'overview' && (
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">HR Dashboard</h1>
-                <p className="text-muted-foreground mt-1">Pre-scored, pre-verified candidates for your open roles</p>
+                <p className="text-muted-foreground mt-1">Manage manually posted roles and review candidates as they come in.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground font-medium">Open roles</CardTitle>
-                    <p className="text-3xl font-bold">{jobsLoading ? '—' : jobs.length}</p>
+                    <p className="text-3xl font-bold">{jobsLoading ? '-' : jobs.length}</p>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground font-medium">Candidates received</CardTitle>
-                    <p className="text-3xl font-bold">{candidates.length || '—'}</p>
+                    <p className="text-3xl font-bold">{candidates.length || '-'}</p>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground font-medium">Avg. match score</CardTitle>
-                    <p className="text-3xl font-bold">{avgScore !== null ? `${avgScore}%` : '—'}</p>
+                    <p className="text-3xl font-bold">{avgScore !== null ? `${avgScore}%` : '-'}</p>
                   </CardHeader>
                 </Card>
               </div>
@@ -210,8 +232,8 @@ export function CompanyDashboardClient({ user }: Props) {
               {jobs.length === 0 && !jobsLoading && (
                 <div className="rounded-lg border-2 border-dashed p-10 text-center text-muted-foreground">
                   <Briefcase className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">Post a job to start receiving candidates</p>
-                  <p className="text-sm mt-1 mb-4">Aplio will score and rank applicants against your job description</p>
+                  <p className="font-medium">Post a job to start populating your company dashboard</p>
+                  <p className="text-sm mt-1 mb-4">You can add jobs manually now and connect automated sourcing later.</p>
                   <Button onClick={() => { setTab('jobs'); setShowPostForm(true) }}>Post a Job</Button>
                 </div>
               )}
@@ -221,12 +243,14 @@ export function CompanyDashboardClient({ user }: Props) {
                   <CardHeader>
                     <CardTitle className="text-base">Recent job postings</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
+                  <CardContent className="space-y-3">
                     {jobs.slice(0, 3).map(job => (
                       <div key={job.id} className="flex items-center justify-between py-2 border-b last:border-0">
                         <div>
                           <p className="text-sm font-medium">{job.normalized_data.title}</p>
-                          <p className="text-xs text-muted-foreground">{job.normalized_data.location ?? 'Remote'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {job.normalized_data.company} · {job.normalized_data.location ?? 'Remote'}
+                          </p>
                         </div>
                         <Badge variant="secondary">{job.status}</Badge>
                       </div>
@@ -237,13 +261,12 @@ export function CompanyDashboardClient({ user }: Props) {
             </div>
           )}
 
-          {/* JOBS TAB */}
           {tab === 'jobs' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-2xl font-bold">Job Postings</h1>
-                  <p className="text-muted-foreground mt-1">Manage your open roles</p>
+                  <p className="text-muted-foreground mt-1">Add and review jobs without waiting on AI normalization.</p>
                 </div>
                 <Button onClick={() => setShowPostForm(true)}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -251,30 +274,78 @@ export function CompanyDashboardClient({ user }: Props) {
                 </Button>
               </div>
 
-              {/* Post job form */}
               {showPostForm && (
                 <div className="rounded-lg border bg-card p-6 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="font-semibold">New job description</h2>
+                    <h2 className="font-semibold">New job posting</h2>
                     <button onClick={() => { setShowPostForm(false); setPostError('') }}>
                       <X className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Paste your full job description — Aplio&apos;s AI will extract the title, skills, salary, and requirements automatically.
-                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                      value={jobForm.title}
+                      onChange={e => setJobForm(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Job title"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={jobForm.company}
+                      onChange={e => setJobForm(prev => ({ ...prev, company: e.target.value }))}
+                      placeholder="Company name"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={jobForm.location}
+                      onChange={e => setJobForm(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="Location or Remote"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    />
+                    <select
+                      value={jobForm.type}
+                      onChange={e => setJobForm(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="full-time">Full-time</option>
+                      <option value="part-time">Part-time</option>
+                      <option value="contract">Contract</option>
+                      <option value="remote">Remote</option>
+                    </select>
+                    <input
+                      value={jobForm.skills}
+                      onChange={e => setJobForm(prev => ({ ...prev, skills: e.target.value }))}
+                      placeholder="Skills, comma separated"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm md:col-span-2"
+                    />
+                    <input
+                      value={jobForm.source}
+                      onChange={e => setJobForm(prev => ({ ...prev, source: e.target.value }))}
+                      placeholder="Source, e.g. manual"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={jobForm.source_url}
+                      onChange={e => setJobForm(prev => ({ ...prev, source_url: e.target.value }))}
+                      placeholder="Source URL (optional)"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+
                   <textarea
-                    value={jdText}
-                    onChange={e => setJdText(e.target.value)}
-                    placeholder="Senior Frontend Engineer at Acme Corp&#10;&#10;We're looking for a React developer with 3+ years experience..."
+                    value={jobForm.description}
+                    onChange={e => setJobForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Paste the full job description here"
                     rows={10}
-                    className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none"
                   />
+
                   {postError && <p className="text-sm text-destructive">{postError}</p>}
+
                   <div className="flex gap-3">
                     <Button onClick={handlePostJob} disabled={posting}>
                       {posting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      {posting ? 'Processing…' : 'Post job'}
+                      {posting ? 'Saving...' : 'Post job'}
                     </Button>
                     <Button variant="outline" onClick={() => { setShowPostForm(false); setPostError('') }} disabled={posting}>
                       Cancel
@@ -293,7 +364,7 @@ export function CompanyDashboardClient({ user }: Props) {
                 <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
                   <Briefcase className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No job postings yet</p>
-                  <p className="text-sm mt-1">Click &quot;Post new job&quot; to create your first role</p>
+                  <p className="text-sm mt-1">Click "Post new job" to create your first role</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -305,10 +376,20 @@ export function CompanyDashboardClient({ user }: Props) {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm">{job.normalized_data.title}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {job.normalized_data.location ?? 'Remote'}
+                          {job.normalized_data.company} · {job.normalized_data.location ?? 'Remote'}
                           {job.normalized_data.type && ` · ${job.normalized_data.type}`}
-                          {job.normalized_data.skills?.length > 0 && ` · ${job.normalized_data.skills.slice(0, 3).join(', ')}`}
+                          {job.normalized_data.skills.length > 0 && ` · ${job.normalized_data.skills.slice(0, 3).join(', ')}`}
                         </p>
+                        {job.source_url && (
+                          <a
+                            href={job.source_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-primary mt-1 inline-flex items-center gap-1"
+                          >
+                            View source <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
                       </div>
                       <Badge variant={job.status === 'active' ? 'success' : 'secondary'}>
                         {job.status}
@@ -320,12 +401,11 @@ export function CompanyDashboardClient({ user }: Props) {
             </div>
           )}
 
-          {/* CANDIDATES TAB */}
           {tab === 'candidates' && (
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">Candidate Pipeline</h1>
-                <p className="text-muted-foreground mt-1">Candidates who applied to your roles — ranked by AI match score</p>
+                <p className="text-muted-foreground mt-1">Candidates who applied to your roles show up here when matching is enabled.</p>
               </div>
 
               {candidatesLoading ? (
@@ -338,33 +418,28 @@ export function CompanyDashboardClient({ user }: Props) {
                 <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
                   <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No candidates yet</p>
-                  <p className="text-sm mt-1">Post a job and Aplio will match and deliver candidates</p>
+                  <p className="text-sm mt-1">As you add jobs and later enable matching, candidates will appear here.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {candidates.map(c => (
-                    <div key={c.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                  {candidates.map(candidate => (
+                    <div key={candidate.id} className="flex items-center gap-4 p-4 border rounded-lg">
                       <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
-                        {c.candidates.full_name[0].toUpperCase()}
+                        {candidate.candidates.full_name[0].toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{c.candidates.full_name}</p>
+                        <p className="font-medium text-sm">{candidate.candidates.full_name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {c.candidates.location ?? 'Location unknown'} · Applied to {c.jobs.normalized_data.title}
+                          {candidate.candidates.location ?? 'Location unknown'} · Applied to {candidate.jobs.normalized_data.title}
                         </p>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         <span className="text-sm font-semibold text-primary">
-                          {Math.round(c.match_score * 100)}%
+                          {Math.round(candidate.match_score * 100)}%
                         </span>
-                        <Badge variant={c.status === 'interview' ? 'default' : c.status === 'applied' ? 'success' : 'secondary'}>
-                          {c.status}
+                        <Badge variant={candidate.status === 'interview' ? 'default' : candidate.status === 'applied' ? 'success' : 'secondary'}>
+                          {candidate.status}
                         </Badge>
-                        <Button variant="ghost" size="sm" asChild>
-                          <a href={`/dashboard/company/candidates/${c.candidate_id}`}>
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
                       </div>
                     </div>
                   ))}
@@ -372,7 +447,6 @@ export function CompanyDashboardClient({ user }: Props) {
               )}
             </div>
           )}
-
         </div>
       </main>
     </div>

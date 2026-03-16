@@ -2,14 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCompanyByUserId } from '@/lib/db/companies'
 import { listJobsByCompany } from '@/lib/db/jobs'
-import { postJob } from '@/lib/services/company-service'
+import { postManualJob } from '@/lib/services/company-service'
 import { z } from 'zod'
 
 const postJobSchema = z.object({
+  title: z.string().min(2, 'Job title is required'),
+  company: z.string().min(2, 'Company name is required'),
+  location: z.string().optional(),
+  type: z.enum(['full-time', 'part-time', 'contract', 'remote']).optional(),
   description: z.string().min(50, 'Job description must be at least 50 characters'),
+  skills: z.array(z.string()).default([]),
+  source: z.string().default('manual'),
+  source_url: z.string().url().optional().or(z.literal('')),
 })
 
-// POST /api/jobs — HR posts a new job description
+// POST /api/jobs — HR posts a manual job
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -23,11 +30,17 @@ export async function POST(req: NextRequest) {
   if (!company) return NextResponse.json({ error: 'Company profile not found. Please contact support.' }, { status: 404 })
 
   try {
-    const job = await postJob(parsed.data.description, company.id)
+    const job = await postManualJob(
+      {
+        ...parsed.data,
+        source_url: parsed.data.source_url || undefined,
+      },
+      company.id,
+    )
     return NextResponse.json(job, { status: 201 })
   } catch (err) {
-    console.error('Job ingest error:', err)
-    return NextResponse.json({ error: 'Failed to process job description' }, { status: 500 })
+    console.error('Manual job create error:', err)
+    return NextResponse.json({ error: 'Failed to create job' }, { status: 500 })
   }
 }
 
