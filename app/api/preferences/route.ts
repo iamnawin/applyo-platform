@@ -12,6 +12,12 @@ const preferencesSchema = z.object({
   max_applications_per_day: z.number().int().min(1).max(50).default(10),
   blacklisted_companies: z.array(z.string()).default([]),
   notify_on_match: z.boolean().default(true),
+  // New granular preferences
+  target_companies: z.array(z.string()).default([]),
+  preferred_industries: z.array(z.string()).default([]),
+  work_authorization: z.string().optional(),
+  desired_salary_currency: z.string().optional(),
+  desired_job_titles: z.array(z.string()).default([]),
 })
 
 // GET /api/preferences — get current candidate preferences

@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select' // Assuming Select component exists or will be created
 import type { Preference } from '@/lib/types'
 
 const JOB_TYPES = ['full-time', 'part-time', 'contract', 'remote'] as const
+const WORK_AUTHORIZATION_OPTIONS = ['US Citizen', 'Green Card', 'H1B', 'Requires Sponsorship', 'Other'] as const
 
 interface Props {
   initial?: Partial<Preference>
@@ -23,14 +25,20 @@ export function PreferenceForm({ initial, onSaved }: Props) {
   const [maxPerDay, setMaxPerDay] = useState((initial?.max_applications_per_day ?? 10).toString())
   const [blacklisted, setBlacklisted] = useState<string[]>(initial?.blacklisted_companies ?? [])
   const [notify, setNotify] = useState(initial?.notify_on_match ?? true)
+  // New granular preferences state
+  const [targetCompanies, setTargetCompanies] = useState<string[]>(initial?.target_companies ?? [])
+  const [preferredIndustries, setPreferredIndustries] = useState<string[]>(initial?.preferred_industries ?? [])
+  const [workAuthorization, setWorkAuthorization] = useState<string>(initial?.work_authorization ?? '')
+  const [desiredSalaryCurrency, setDesiredSalaryCurrency] = useState<string>(initial?.desired_salary_currency ?? '')
+  const [desiredJobTitles, setDesiredJobTitles] = useState<string[]>(initial?.desired_job_titles ?? [])
 
   const [roleInput, setRoleInput] = useState('')
   const [locationInput, setLocationInput] = useState('')
   const [blacklistInput, setBlacklistInput] = useState('')
-
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState('')
+  // New granular preferences inputs
+  const [targetCompanyInput, setTargetCompanyInput] = useState('')
+  const [preferredIndustryInput, setPreferredIndustryInput] = useState('')
+  const [desiredJobTitleInput, setDesiredJobTitleInput] = useState('')
 
   function addTag(list: string[], setList: (v: string[]) => void, value: string) {
     const trimmed = value.trim()
@@ -60,6 +68,12 @@ export function PreferenceForm({ initial, onSaved }: Props) {
       max_applications_per_day: parseInt(maxPerDay) || 10,
       blacklisted_companies: blacklisted,
       notify_on_match: notify,
+      // New granular preferences
+      target_companies: targetCompanies,
+      preferred_industries: preferredIndustries,
+      work_authorization: workAuthorization || undefined,
+      desired_salary_currency: desiredSalaryCurrency || undefined,
+      desired_job_titles: desiredJobTitles,
     }
 
     try {
@@ -210,6 +224,110 @@ export function PreferenceForm({ initial, onSaved }: Props) {
                   <span key={c} className="flex items-center gap-1 rounded-full bg-destructive/10 text-destructive px-3 py-1 text-xs font-medium">
                     {c}
                     <button type="button" onClick={() => removeTag(blacklisted, setBlacklisted, c)}><X className="h-3 w-3" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Target Companies */}
+          <div className="space-y-2">
+            <Label>Target companies (companies you specifically want to work for)</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g. Google, Microsoft"
+                value={targetCompanyInput}
+                onChange={e => setTargetCompanyInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(targetCompanies, setTargetCompanies, targetCompanyInput); setTargetCompanyInput('') } }}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => { addTag(targetCompanies, setTargetCompanies, targetCompanyInput); setTargetCompanyInput('') }}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {targetCompanies.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {targetCompanies.map(c => (
+                  <span key={c} className="flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                    {c}
+                    <button type="button" onClick={() => removeTag(targetCompanies, setTargetCompanies, c)}><X className="h-3 w-3" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Preferred Industries */}
+          <div className="space-y-2">
+            <Label>Preferred industries</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g. FinTech, Healthcare"
+                value={preferredIndustryInput}
+                onChange={e => setPreferredIndustryInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(preferredIndustries, setPreferredIndustries, preferredIndustryInput); setPreferredIndustryInput('') } }}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => { addTag(preferredIndustries, setPreferredIndustries, preferredIndustryInput); setPreferredIndustryInput('') }}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {preferredIndustries.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {preferredIndustries.map(i => (
+                  <span key={i} className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-xs font-medium">
+                    {i}
+                    <button type="button" onClick={() => removeTag(preferredIndustries, setPreferredIndustries, i)}><X className="h-3 w-3" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Work Authorization */}
+          <div className="space-y-2">
+            <Label htmlFor="workAuthorization">Work Authorization</Label>
+            <Select value={workAuthorization} onValueChange={setWorkAuthorization}>
+              <SelectTrigger id="workAuthorization">
+                <SelectValue placeholder="Select your work authorization" />
+              </SelectTrigger>
+              <SelectContent>
+                {WORK_AUTHORIZATION_OPTIONS.map(option => (
+                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Desired Salary Currency */}
+          <div className="space-y-2">
+            <Label htmlFor="desiredSalaryCurrency">Desired Salary Currency</Label>
+            <Input
+              id="desiredSalaryCurrency"
+              placeholder="e.g. USD, INR"
+              value={desiredSalaryCurrency}
+              onChange={e => setDesiredSalaryCurrency(e.target.value)}
+            />
+          </div>
+
+          {/* Desired Job Titles */}
+          <div className="space-y-2">
+            <Label>Desired Job Titles (more specific than roles)</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g. Senior Frontend Engineer, AI/ML Specialist"
+                value={desiredJobTitleInput}
+                onChange={e => setDesiredJobTitleInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(desiredJobTitles, setDesiredJobTitles, desiredJobTitleInput); setDesiredJobTitleInput('') } }}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => { addTag(desiredJobTitles, setDesiredJobTitles, desiredJobTitleInput); setDesiredJobTitleInput('') }}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {desiredJobTitles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {desiredJobTitles.map(t => (
+                  <span key={t} className="flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                    {t}
+                    <button type="button" onClick={() => removeTag(desiredJobTitles, setDesiredJobTitles, t)}><X className="h-3 w-3" /></button>
                   </span>
                 ))}
               </div>
