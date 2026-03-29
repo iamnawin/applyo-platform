@@ -4,7 +4,30 @@ import {
   updateApplicationAutomationStatus,
 } from '@/lib/db/applications'
 import { createServerClient } from '@/lib/db/client'
-import { applyToJob } from './platforms/playwright-apply'
+import {
+  getApplicationById,
+  logToApplication,
+  updateApplicationAutomationStatus,
+} from '@/lib/db/applications'
+import { createServerClient } from '@/lib/db/client'
+import { applyToJob } from './platforms/playwright-apply' // Generic fallback
+import { applyToGreenhouse } from './platforms/greenhouse-apply' // Greenhouse driver
+
+/**
+ * Determines the job platform from the URL.
+ * @param jobUrl The URL of the job posting.
+ * @returns A string identifying the platform (e.g., 'greenhouse', 'lever', 'generic').
+ */
+function detectPlatform(jobUrl: string): string {
+  if (jobUrl.includes('boards.greenhouse.io')) {
+    return 'greenhouse'
+  }
+  // Add more platform detections here
+  // if (jobUrl.includes('jobs.lever.co')) {
+  //   return 'lever'
+  // }
+  return 'generic'
+}
 
 /**
  * Routes an application to the correct automation platform handler.
@@ -45,14 +68,29 @@ export async function routeApply(applicationId: string): Promise<void> {
     const resumeFileName = activeResume.storage_path.split('/').pop() || 'resume.pdf'
     await log(`Resume downloaded successfully (${(resumeFile.length / 1024).toFixed(2)} KB).`)
 
-    // For now, we only have one platform: the generic Playwright script.
-    await applyToJob({
-      jobUrl: application.job.source_url,
+    const jobUrl = application.job.source_url
+    const platform = detectPlatform(jobUrl)
+
+    await log(`Detected platform: ${platform}`)
+
+    const applyParams = {
+      jobUrl,
       resume: activeResume.parsed_data,
       resumeFile,
       resumeFileName,
       log,
-    })
+    }
+
+    switch (platform) {
+      case 'greenhouse':
+        await applyToGreenhouse(applyParams)
+        break
+      case 'generic':
+      default:
+        await log('Using generic Playwright script for application.')
+        await applyToJob(applyParams)
+        break
+    }
 
     await updateApplicationAutomationStatus(applicationId, 'submitted')
     await log('Automation process completed successfully: status set to "submitted".')
