@@ -36,6 +36,7 @@ export interface Application {
   candidate_id: string
   job_id: string
   match_score: number
+  match_reasons: string[] | null // Added match_reasons
   status: 'pending' | 'approved' | 'skipped' | 'applied' | 'rejected' | 'interview'
   applied_at: string | null
   created_at: string

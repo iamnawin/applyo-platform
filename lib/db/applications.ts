@@ -24,7 +24,9 @@ export async function listCandidatesForCompany(companyId: string) {
   return (data ?? [])
 }
 
-export async function upsertApplication(application: Partial<Application> & { candidate_id: string; job_id: string }) {
+export async function upsertApplication(
+  application: Partial<Application> & { candidate_id: string; job_id: string; match_reasons?: string[] | null }
+) {
   const db = createServerClient()
   const { data, error } = await db
     .from('applications')

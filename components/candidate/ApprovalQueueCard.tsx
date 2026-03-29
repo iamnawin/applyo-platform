@@ -102,6 +102,17 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
           </div>
         )}
 
+        {application.match_reasons && application.match_reasons.length > 0 && (
+          <div className="mt-4 space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">Why this is a good match:</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground/80">
+              {application.match_reasons.map((reason, index) => (
+                <li key={index}>{reason}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="mt-4">
           <ScoreCard overall={score} breakdown={breakdown} />
         </div>
