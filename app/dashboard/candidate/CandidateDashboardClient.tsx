@@ -46,8 +46,8 @@ import { useRouter } from 'next/navigation'
 import { LayoutDashboard, FileText, Settings, ListChecks, History, LogOut, Menu, X, Edit } from 'lucide-react' // Added Edit icon
 import { createClient } from '@/lib/supabase/client'
 import { ResumeUploader } from '@/components/candidate/ResumeUploader'
-import { PreferenceForm } from '@/components/candidate/PreferenceForm'
-import { ResumeProfileForm } from '@/components/candidate/ResumeProfileForm' // Added ResumeProfileForm import
+import { PreferenceWizard } from '@/components/candidate/PreferenceWizard' // Changed to PreferenceWizard
+import { ResumeProfileForm } from '@/components/candidate/ResumeProfileForm'
 import { ApprovalQueueCard } from '@/components/candidate/ApprovalQueueCard'
 import { ApplicationRow } from '@/components/candidate/ApplicationRow'
 import { Button } from '@/components/ui/button'
@@ -420,7 +420,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <h1 className="text-2xl font-bold">Preferences</h1>
                 <p className="text-muted-foreground mt-1">Tell Aplio what jobs to find and apply to on your behalf</p>
               </div>
-              <PreferenceForm initial={preferences ?? undefined} onSaved={setPreferences} />
+              <PreferenceWizard initial={preferences ?? undefined} onSaved={setPreferences} />
             </div>
           )}
 
