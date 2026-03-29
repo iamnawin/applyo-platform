@@ -1,5 +1,6 @@
 import { chromium, Page, Locator } from 'playwright'
 import { ParsedResume } from '@/lib/types'
+import { inferFieldPurpose } from '@/lib/ai/infer-field-purpose' // Import AI utility
 
 interface ApplyToJobParams {
   jobUrl: string
@@ -32,17 +33,19 @@ export async function applyToJob({
     await log(`Successfully navigated to page: ${await page.title()}`)
 
     // --- Field Filling Logic ---
-    if (resume.name) await fillField(page, log, ['full name', 'name'], resume.name)
-    if (resume.email) await fillField(page, log, ['email', 'email address'], resume.email)
-    if (resume.phone) await fillField(page, log, ['phone', 'phone number'], resume.phone)
-    if (resume.location) await fillField(page, log, ['location', 'city'], resume.location)
+    // Attempt to fill fields using AI inference for better adaptability
+    await log('Attempting to fill fields using AI inference.')
+    await fillFieldAI(page, log, 'name', resume.name)
+    await fillFieldAI(page, log, 'email', resume.email)
+    await fillFieldAI(page, log, 'phone', resume.phone)
+    await fillFieldAI(page, log, 'location', resume.location)
 
     // --- Custom Questions (Text Areas) ---
     // Prioritize generated cover letter if available, otherwise use resume summary
     if (generatedCoverLetter) {
-      await fillTextArea(page, log, ['cover letter', 'additional information', 'summary'], generatedCoverLetter)
+      await fillTextAreaAI(page, log, 'cover_letter', generatedCoverLetter)
     } else if (resume.summary) {
-      await fillTextArea(page, log, ['cover letter', 'additional information', 'summary'], resume.summary)
+      await fillTextAreaAI(page, log, 'summary', resume.summary)
     }
 
     // --- File Upload Logic ---
@@ -76,6 +79,55 @@ export async function applyToJob({
   }
 }
 
+// New AI-driven fillField function
+async function fillFieldAI(page: Page, log: Function, targetPurpose: string, value: string) {
+  if (!value) return // Don't try to fill if value is empty
+
+  const inputLocators = page.locator('input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="number"]')
+
+  const count = await inputLocators.count()
+  for (let i = 0; i < count; i++) {
+    const locator = inputLocators.nth(i)
+    const boundingBox = await locator.boundingBox()
+    if (!boundingBox) continue // Skip hidden elements
+
+    const htmlSnippet = await page.evaluate(el => el.outerHTML, await locator.elementHandle())
+    const inferred = await inferFieldPurpose(htmlSnippet)
+
+    if (inferred.confidence_score > 0.7 && inferred.inferred_purpose === targetPurpose) {
+      await locator.fill(value)
+      await log(`Filled AI-inferred field (purpose: "${targetPurpose}", confidence: ${inferred.confidence_score.toFixed(2)}) with value: ${value}`)
+      return
+    }
+  }
+  await log(`WARNING: Could not find AI-inferred field for purpose "${targetPurpose}".`)
+}
+
+// New AI-driven fillTextArea function
+async function fillTextAreaAI(page: Page, log: Function, targetPurpose: string, value: string) {
+  if (!value) return // Don't try to fill if value is empty
+
+  const textareaLocators = page.locator('textarea')
+
+  const count = await textareaLocators.count()
+  for (let i = 0; i < count; i++) {
+    const locator = textareaLocators.nth(i)
+    const boundingBox = await locator.boundingBox()
+    if (!boundingBox) continue // Skip hidden elements
+
+    const htmlSnippet = await page.evaluate(el => el.outerHTML, await locator.elementHandle())
+    const inferred = await inferFieldPurpose(htmlSnippet)
+
+    if (inferred.confidence_score > 0.7 && inferred.inferred_purpose === targetPurpose) {
+      await locator.fill(value)
+      await log(`Filled AI-inferred textarea (purpose: "${targetPurpose}", confidence: ${inferred.confidence_score.toFixed(2)})`)
+      return
+    }
+  }
+  await log(`WARNING: Could not find AI-inferred textarea for purpose "${targetPurpose}".`)
+}
+
+// Original helper functions (might be removed or refactored later)
 async function fillField(page: Page, log: Function, labels: string[], value: string) {
   for (const label of labels) {
     const locator = await findLocator(page, labels)
@@ -96,34 +148,4 @@ async function fillTextArea(page: Page, log: Function, labels: string[], value: 
       return
     }
   }
-}
-
-async function findLocator(page: Page, labels: string[], elementType = 'input'): Promise<Locator | null> {
-  for (const label of labels) {
-    try {
-      const byLabel = page.getByLabel(label, { exact: false })
-      if (await byLabel.count() > 0 && (await byLabel.first().locator(elementType).count()) > 0) {
-        return byLabel.first().locator(elementType)
-      }
-
-      const byPlaceholder = page.getByPlaceholder(label, { exact: false })
-      if (await byPlaceholder.count() > 0 && (await byPlaceholder.first().locator(elementType).count()) > 0) {
-        return byPlaceholder.first()
-      }
-    } catch {}
-  }
-  return null
-}
-
-async function findFileInput(page: Page): Promise<Locator | null> {
-  const commonLabels = ['resume', 'cv', 'upload resume', 'attach resume']
-  for (const label of commonLabels) {
-    const locator = page.getByLabel(label, { exact: false })
-    if (await locator.count() > 0) return locator.first()
-  }
-  // Fallback to a generic type selector
-  const genericLocator = page.locator('input[type="file"]')
-  if (await genericLocator.count() > 0) return genericLocator.first()
-
-  return null
 }
