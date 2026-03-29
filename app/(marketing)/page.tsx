@@ -15,10 +15,10 @@ import {
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-transparent text-foreground">
 
       {/* ── NAVBAR ─────────────────────────────────────── */}
-      <header className="fixed top-0 inset-x-0 z-50 border-b border-foreground/10 bg-foreground/95 backdrop-blur-sm">
+      <header className="fixed top-0 inset-x-0 z-50 border-b border-white/8 bg-[rgba(7,11,20,0.78)] backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <span className="text-background text-xl font-bold tracking-tight">
             Aplio
@@ -39,20 +39,21 @@ export default function LandingPage() {
 
       {/* ── HERO ───────────────────────────────────────── */}
       <section
-        className="relative bg-foreground text-background pt-14 overflow-hidden"
+        className="relative pt-14 overflow-hidden"
         style={{
-          backgroundImage:
-            'radial-gradient(circle, hsl(210 40% 30% / 0.25) 1px, transparent 1px)',
-          backgroundSize: '28px 28px',
+          backgroundImage: [
+            'radial-gradient(circle at 20% 20%, hsl(214 100% 62% / 0.18), transparent 24%)',
+            'radial-gradient(circle at 80% 10%, hsl(192 100% 60% / 0.12), transparent 18%)',
+            'radial-gradient(circle, hsl(210 40% 30% / 0.18) 1px, transparent 1px)',
+            'linear-gradient(180deg, hsl(224 38% 11%), hsl(220 41% 7%))',
+          ].join(','),
+          backgroundSize: 'auto, auto, 28px 28px, auto',
         }}
       >
         <div className="max-w-6xl mx-auto px-6 py-20 md:py-28 grid md:grid-cols-2 gap-12 items-center">
           {/* Left — copy */}
           <div className="space-y-6">
-            <Badge
-              variant="outline"
-              className="border-background/20 text-background/70 text-xs font-mono tracking-widest uppercase"
-            >
+            <Badge variant="outline" className="border-white/10 bg-white/5 text-background/70 text-xs font-mono tracking-widest uppercase shadow-[0_8px_20px_rgba(0,0,0,0.18)]">
               AI-powered job applications
             </Badge>
 
@@ -92,7 +93,7 @@ export default function LandingPage() {
 
           {/* Right — mock approval queue UI */}
           <div className="hidden md:block">
-            <div className="rounded-2xl border border-background/10 bg-background/5 backdrop-blur p-1 shadow-2xl">
+            <div className="rounded-[1.7rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] p-1 shadow-[0_40px_90px_rgba(0,0,0,0.42)] backdrop-blur-xl">
               {/* mock window bar */}
               <div className="flex items-center gap-1.5 px-3 py-2 border-b border-background/10">
                 <span className="h-2.5 w-2.5 rounded-full bg-red-400/60" />
@@ -109,7 +110,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* mock job card 1 — highlighted */}
-                <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div className="rounded-xl border border-primary/30 bg-[linear-gradient(180deg,rgba(58,135,255,0.18),rgba(17,28,54,0.82))] p-4 space-y-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_24px_40px_rgba(6,10,22,0.35)]">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold text-background">Senior React Developer</p>
@@ -144,7 +145,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* mock job card 2 — compact */}
-                <div className="rounded-xl border border-background/10 bg-background/5 p-3 flex items-center justify-between gap-3">
+                <div className="rounded-xl border border-background/10 bg-background/5 p-3 flex items-center justify-between gap-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-background truncate">Full Stack Engineer · Startupwala</p>
                     <p className="text-xs text-background/40">Bangalore · full-time</p>
@@ -153,7 +154,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* mock job card 3 — compact */}
-                <div className="rounded-xl border border-background/10 bg-background/5 p-3 flex items-center justify-between gap-3">
+                <div className="rounded-xl border border-background/10 bg-background/5 p-3 flex items-center justify-between gap-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-background truncate">Frontend Engineer · FinPay Technologies</p>
                     <p className="text-xs text-background/40">Mumbai · hybrid</p>
@@ -251,7 +252,7 @@ export default function LandingPage() {
             ].map(({ icon: Icon, title, body }) => (
               <div
                 key={title}
-                className="group rounded-2xl border bg-card p-6 space-y-4 hover:border-primary/30 hover:shadow-sm transition-all"
+                className="group glass-panel rounded-2xl border border-white/8 p-6 space-y-4 transition-all hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_24px_50px_rgba(0,0,0,0.34)]"
               >
                 <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
                   <Icon className="h-5 w-5 text-primary" />
@@ -276,7 +277,7 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* For Job Seekers */}
-            <div className="rounded-2xl border bg-card p-8 space-y-6">
+            <div className="glass-panel rounded-2xl border border-white/8 p-8 space-y-6">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Zap className="h-5 w-5 text-primary" />
@@ -306,7 +307,7 @@ export default function LandingPage() {
             </div>
 
             {/* For HR Teams */}
-            <div className="rounded-2xl border bg-card p-8 space-y-6">
+            <div className="glass-panel rounded-2xl border border-white/8 p-8 space-y-6">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
                   <BarChart3 className="h-5 w-5 text-primary" />
@@ -340,11 +341,14 @@ export default function LandingPage() {
 
       {/* ── CTA BANNER ─────────────────────────────────── */}
       <section
-        className="relative bg-foreground text-background py-24 overflow-hidden"
+        className="relative py-24 overflow-hidden"
         style={{
-          backgroundImage:
-            'radial-gradient(circle, hsl(210 40% 30% / 0.2) 1px, transparent 1px)',
-          backgroundSize: '28px 28px',
+          backgroundImage: [
+            'radial-gradient(circle at 50% 0%, hsl(214 100% 62% / 0.16), transparent 24%)',
+            'radial-gradient(circle, hsl(210 40% 30% / 0.16) 1px, transparent 1px)',
+            'linear-gradient(180deg, hsl(224 38% 11%), hsl(220 41% 7%))',
+          ].join(','),
+          backgroundSize: 'auto, 28px 28px, auto',
         }}
       >
         <div className="max-w-3xl mx-auto px-6 text-center space-y-6">
@@ -369,7 +373,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER ─────────────────────────────────────── */}
-      <footer className="bg-foreground border-t border-background/10 py-8">
+      <footer className="border-t border-white/8 bg-[rgba(7,11,20,0.92)] py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-background/70 text-sm font-bold tracking-tight">Aplio</span>
           <p className="text-background/30 text-xs font-mono">

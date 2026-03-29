@@ -45,8 +45,8 @@ export default function SignupPage() {
 
   if (verifyMessage) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-sm text-center">
+      <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+        <Card className="w-full max-w-sm border-white/10 text-center">
           <CardHeader>
             <CardTitle>Check your email</CardTitle>
             <CardDescription>
@@ -65,8 +65,8 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+      <Card className="w-full max-w-sm border-white/10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
           <CardDescription>Start applying smarter with Aplio</CardDescription>
@@ -113,10 +113,10 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setRole('candidate')}
-                  className={`rounded-md border p-3 text-sm font-medium transition-colors ${
+                  className={`rounded-xl border p-3 text-sm font-semibold transition-all ${
                     role === 'candidate'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-input hover:bg-accent'
+                      ? 'border-primary/40 bg-[linear-gradient(180deg,rgba(58,135,255,0.22),rgba(16,31,63,0.88))] text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_24px_rgba(17,55,145,0.18)]'
+                      : 'border-input/90 bg-[linear-gradient(180deg,rgba(28,35,54,0.92),rgba(18,22,36,0.98))] text-muted-foreground hover:border-primary/25 hover:bg-accent/70 hover:text-foreground'
                   }`}
                 >
                   Job Seeker
@@ -124,10 +124,10 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setRole('company')}
-                  className={`rounded-md border p-3 text-sm font-medium transition-colors ${
+                  className={`rounded-xl border p-3 text-sm font-semibold transition-all ${
                     role === 'company'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-input hover:bg-accent'
+                      ? 'border-primary/40 bg-[linear-gradient(180deg,rgba(58,135,255,0.22),rgba(16,31,63,0.88))] text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_24px_rgba(17,55,145,0.18)]'
+                      : 'border-input/90 bg-[linear-gradient(180deg,rgba(28,35,54,0.92),rgba(18,22,36,0.98))] text-muted-foreground hover:border-primary/25 hover:bg-accent/70 hover:text-foreground'
                   }`}
                 >
                   HR / Company

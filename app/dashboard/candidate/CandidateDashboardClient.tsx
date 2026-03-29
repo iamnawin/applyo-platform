@@ -114,7 +114,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
       : 'Stored, parsing pending'
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex min-h-screen bg-transparent overflow-hidden">
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
@@ -122,7 +122,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
       <aside
         className={`
         fixed md:relative z-30 md:z-auto flex-shrink-0 w-64 h-full
-        border-r bg-card flex flex-col
+        border-r border-white/8 bg-[linear-gradient(180deg,rgba(15,22,39,0.96),rgba(9,14,26,0.98))] backdrop-blur-xl flex flex-col shadow-[18px_0_40px_rgba(0,0,0,0.28)]
         transition-transform duration-200
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}
@@ -142,10 +142,10 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
               <button
                 key={item.id}
                 onClick={() => { setTab(item.id as Tab); setMobileOpen(false) }}
-                className={`flex items-center gap-3 w-full rounded-md px-3 py-2.5 text-sm font-medium transition-colors
+                className={`flex items-center gap-3 w-full rounded-xl px-3 py-3 text-sm font-medium transition-all
                   ${tab === item.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    ? 'border border-primary/30 bg-[linear-gradient(180deg,rgba(58,135,255,0.25),rgba(28,53,104,0.3))] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_24px_rgba(15,70,180,0.2)]'
+                    : 'text-muted-foreground hover:bg-white/5 hover:text-accent-foreground'
                   }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -178,7 +178,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
       </aside>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="md:hidden flex items-center gap-3 p-4 border-b sticky top-0 bg-background z-10">
+        <div className="md:hidden flex items-center gap-3 p-4 border-b border-white/8 sticky top-0 bg-[rgba(8,12,20,0.85)] backdrop-blur-xl z-10">
           <button onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>
@@ -231,7 +231,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
               {latestResume && (
                 <div>
                   <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Latest resume</h2>
-                  <div className="rounded-lg border p-4 flex items-center gap-4">
+                  <div className="depth-surface rounded-[1.25rem] border border-white/8 p-4 flex items-center gap-4">
                     <FileText className="h-8 w-8 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium">
@@ -260,13 +260,13 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 {suggestedLoading ? (
                   <div className="text-sm text-muted-foreground">Loading suggestions...</div>
                 ) : suggestedJobs.length === 0 ? (
-                  <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                  <div className="depth-surface rounded-[1.2rem] border border-dashed border-white/10 p-6 text-sm text-muted-foreground">
                     No suggestions yet. Add job postings and preferences to start seeing matches.
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {suggestedJobs.slice(0, 4).map(suggestion => (
-                      <div key={suggestion.job.id} className="rounded-lg border p-4">
+                      <div key={suggestion.job.id} className="depth-surface rounded-[1.25rem] border border-white/8 p-4">
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="font-medium">{suggestion.job.normalized_data.title}</p>
@@ -320,7 +320,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                         : 'Stored safely. Parsing pending until AI is available.'
 
                       return (
-                        <div key={resume.id} className="rounded-lg border p-4 flex items-center gap-4">
+                        <div key={resume.id} className="depth-surface rounded-[1.25rem] border border-white/8 p-4 flex items-center gap-4">
                           <FileText className="h-6 w-6 text-primary shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm">
@@ -362,7 +362,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <div className="text-center py-12 text-muted-foreground text-sm">Loading matches...</div>
               )}
               {!queueLoading && queue.length === 0 && (
-                <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+                <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
                   <ListChecks className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No jobs pending approval</p>
                   <p className="text-sm mt-1">Upload your resume and Aplio will find matching jobs for you.</p>
@@ -388,7 +388,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <div className="text-center py-12 text-muted-foreground text-sm">Loading applications...</div>
               )}
               {!appsLoading && applications.length === 0 && (
-                <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+                <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
                   <History className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No applications yet</p>
                   <p className="text-sm mt-1">Approve jobs in the queue and Aplio will apply for you.</p>
@@ -411,7 +411,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string; sub: string; accent?: boolean }) {
   return (
-    <div className={`rounded-lg border p-4 ${accent ? 'border-primary/30 bg-primary/5' : ''}`}>
+    <div className={`depth-surface rounded-[1.25rem] border border-white/8 p-4 ${accent ? 'border-primary/30 bg-[linear-gradient(180deg,rgba(42,110,255,0.12),rgba(17,28,54,0.92))]' : ''}`}>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
       <p className={`text-lg font-bold mt-1 ${accent ? 'text-primary' : ''}`}>{value}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>

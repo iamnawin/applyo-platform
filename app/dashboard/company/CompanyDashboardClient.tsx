@@ -135,7 +135,7 @@ export function CompanyDashboardClient({ user }: Props) {
     : null
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex min-h-screen bg-transparent overflow-hidden">
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
@@ -143,7 +143,7 @@ export function CompanyDashboardClient({ user }: Props) {
       <aside
         className={`
         fixed md:relative z-30 md:z-auto flex-shrink-0 w-64 h-full
-        border-r bg-card flex flex-col
+        border-r border-white/8 bg-[linear-gradient(180deg,rgba(15,22,39,0.96),rgba(9,14,26,0.98))] backdrop-blur-xl flex flex-col shadow-[18px_0_40px_rgba(0,0,0,0.28)]
         transition-transform duration-200
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}
@@ -162,10 +162,10 @@ export function CompanyDashboardClient({ user }: Props) {
               <button
                 key={item.id}
                 onClick={() => { setTab(item.id as Tab); setMobileOpen(false) }}
-                className={`flex items-center gap-3 w-full rounded-md px-3 py-2.5 text-sm font-medium transition-colors
+                className={`flex items-center gap-3 w-full rounded-xl px-3 py-3 text-sm font-medium transition-all
                   ${tab === item.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    ? 'border border-primary/30 bg-[linear-gradient(180deg,rgba(58,135,255,0.25),rgba(28,53,104,0.3))] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_24px_rgba(15,70,180,0.2)]'
+                    : 'text-muted-foreground hover:bg-white/5 hover:text-accent-foreground'
                   }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -193,7 +193,7 @@ export function CompanyDashboardClient({ user }: Props) {
       </aside>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="md:hidden flex items-center gap-3 p-4 border-b sticky top-0 bg-background z-10">
+        <div className="md:hidden flex items-center gap-3 p-4 border-b border-white/8 sticky top-0 bg-[rgba(8,12,20,0.85)] backdrop-blur-xl z-10">
           <button onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>
@@ -230,7 +230,7 @@ export function CompanyDashboardClient({ user }: Props) {
               </div>
 
               {jobs.length === 0 && !jobsLoading && (
-                <div className="rounded-lg border-2 border-dashed p-10 text-center text-muted-foreground">
+                <div className="depth-surface rounded-[1.4rem] border-2 border-dashed border-white/10 p-10 text-center text-muted-foreground">
                   <Briefcase className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">Post a job to start populating your company dashboard</p>
                   <p className="text-sm mt-1 mb-4">You can add jobs manually now and connect automated sourcing later.</p>
@@ -275,7 +275,7 @@ export function CompanyDashboardClient({ user }: Props) {
               </div>
 
               {showPostForm && (
-                <div className="rounded-lg border bg-card p-6 space-y-4">
+                <div className="glass-panel rounded-[1.4rem] border border-white/8 p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="font-semibold">New job posting</h2>
                     <button onClick={() => { setShowPostForm(false); setPostError('') }}>
@@ -361,7 +361,7 @@ export function CompanyDashboardClient({ user }: Props) {
                   ))}
                 </div>
               ) : jobs.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+                <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
                   <Briefcase className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No job postings yet</p>
                   <p className="text-sm mt-1">Click "Post new job" to create your first role</p>
@@ -369,7 +369,7 @@ export function CompanyDashboardClient({ user }: Props) {
               ) : (
                 <div className="space-y-3">
                   {jobs.map(job => (
-                    <div key={job.id} className="flex items-start gap-4 p-4 border rounded-lg">
+                    <div key={job.id} className="depth-surface flex items-start gap-4 p-4 border border-white/8 rounded-[1.25rem]">
                       <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                         <Briefcase className="h-5 w-5 text-primary" />
                       </div>
@@ -415,7 +415,7 @@ export function CompanyDashboardClient({ user }: Props) {
                   ))}
                 </div>
               ) : candidates.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+                <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
                   <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No candidates yet</p>
                   <p className="text-sm mt-1">As you add jobs and later enable matching, candidates will appear here.</p>
@@ -423,7 +423,7 @@ export function CompanyDashboardClient({ user }: Props) {
               ) : (
                 <div className="space-y-3">
                   {candidates.map(candidate => (
-                    <div key={candidate.id} className="flex items-center gap-4 p-4 border rounded-lg">
+                    <div key={candidate.id} className="depth-surface flex items-center gap-4 p-4 border border-white/8 rounded-[1.25rem]">
                       <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
                         {candidate.candidates.full_name[0].toUpperCase()}
                       </div>
