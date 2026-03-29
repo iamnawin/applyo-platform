@@ -2,6 +2,7 @@ import { findCareerPage } from '@/lib/ai/find-career-page'
 import { detectATS } from '@/lib/ai/detect-ats'
 import { scrapeGreenhouseBoard } from './platforms/greenhouse-scraper'
 import { scrapeIndeedBoard } from './platforms/indeed-scraper'
+import { scrapeLeverBoard } from './platforms/lever-scraper' // Import Lever scraper
 // import { scrapeGenericBoard } from './platforms/generic-scraper' // Future: generic scraper
 
 /**
@@ -44,10 +45,10 @@ export async function orchestrateJobDiscovery(companyName: string): Promise<stri
       // For now, we'll log a warning and skip.
       console.warn(`[Discovery Orchestrator] Indeed ATS detected, but direct scraping from career page is not supported yet. Skipping.`)
       return `Indeed ATS detected for ${companyName}, but direct scraping from career page is not supported yet.`
-    // case 'lever': // Future: Implement Lever scraper
-    //   console.log(`[Discovery Orchestrator] Triggering Lever scraper for ${companyName}.`)
-    //   await scrapeLeverBoard(careerPageResult.career_page_url)
-    //   return `Successfully initiated Lever scraping for ${companyName}.`
+    case 'lever': // Implement Lever scraper
+      console.log(`[Discovery Orchestrator] Triggering Lever scraper for ${companyName}.`)
+      await scrapeLeverBoard(careerPageResult.career_page_url)
+      return `Successfully initiated Lever scraping for ${companyName}.`
     case 'other':
     case null:
     default:
