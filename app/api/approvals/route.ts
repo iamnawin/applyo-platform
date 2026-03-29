@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCandidateByUserId } from '@/lib/db/candidates'
 import { createServerClient } from '@/lib/db/client'
 import { upsertApplication } from '@/lib/db/applications'
+import { triggerApply } from '@/lib/automation' // Import triggerApply
 import { z } from 'zod'
 
 // GET /api/approvals — list pending applications for current user
@@ -29,6 +30,7 @@ export async function GET() {
 const actionSchema = z.object({
   application_id: z.string().uuid(),
   action: z.enum(['approved', 'skipped']),
+  generated_cover_letter: z.string().optional(), // Added generated_cover_letter
 })
 
 // POST /api/approvals — approve or skip a pending match
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
   const parsed = actionSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-  const { application_id, action } = parsed.data
+  const { application_id, action, generated_cover_letter } = parsed.data // Destructure generated_cover_letter
 
   const db = createServerClient()
   const { data: app, error: fetchError } = await db
@@ -62,19 +64,12 @@ export async function POST(req: NextRequest) {
     status: action,
   })
 
-  // If approved, fire-and-forget to automation service — bot failures are silent
+  // If approved, trigger the internal automation service
   if (action === 'approved') {
-    const automationUrl = process.env.AUTOMATION_SERVICE_URL
-    if (automationUrl) {
-      fetch(`${automationUrl}/apply`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.AUTOMATION_API_KEY ?? '',
-        },
-        body: JSON.stringify({ application_id: updated.id }),
-      }).catch(() => {})
-    }
+    // Fire-and-forget to automation service — bot failures are silent
+    triggerApply(updated.id, generated_cover_letter).catch(err => { // Pass generated_cover_letter
+      console.error(`Failed to trigger automation for application ${updated.id}:`, err)
+    })
   }
 
   return NextResponse.json(updated)

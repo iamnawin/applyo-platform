@@ -5,7 +5,23 @@
       "Bash(find /c/Users/Naveen/OneDrive/Desktop/Applyo -path \"*/app/\\(auth\\)/login/page.tsx\" -o -path \"*/app/\\(auth\\)/signup/page.tsx\" 2>/dev/null)",
       "Bash(find /c/Users/Naveen/OneDrive/Desktop/Applyo/lib -name \"*.ts\" -path \"*types*\" -o -name \"*types*\" -type d 2>/dev/null | head -5)",
       "Bash(cd \"C:/Users/Naveen/OneDrive/Desktop/Applyo\" && npm run build 2>&1 | tail -30)",
-      "Bash(cd \"C:/Users/Naveen/OneDrive/Desktop/Applyo\" && npm run build 2>&1 | tail -25)"
+      "Bash(cd \"C:/Users/Naveen/OneDrive/Desktop/Applyo\" && npm run build 2>&1 | tail -25)",
+      "mcp__claude_ai_Vercel__list_projects",
+      "mcp__claude_ai_Vercel__list_deployments",
+      "mcp__claude_ai_Vercel__get_deployment_build_logs",
+      "Bash(npm run:*)",
+      "Bash(git add:*)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(git push:*)",
+      "Bash(ls:*)",
+      "Bash(cp:*)",
+      "mcp__claude_ai_Vercel__list_teams",
+      "Bash(npx vercel:*)",
+      "mcp__claude_ai_Vercel__web_fetch_vercel_url",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "mcp__claude_ai_Vercel__get_runtime_logs"
     ]
   }
 }

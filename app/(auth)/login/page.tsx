@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getAuthCallbackUrl } from '@/lib/supabase/app-url'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,6 +31,12 @@ export default function LoginPage() {
       return
     }
 
+    if (data.user && !data.session) {
+      setError('Please confirm your email before signing in.')
+      setLoading(false)
+      return
+    }
+
     const role = data.user?.user_metadata?.role
     router.push(role === 'company' ? '/dashboard/company' : '/dashboard/candidate')
     router.refresh()
@@ -39,13 +46,13 @@ export default function LoginPage() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/callback` },
+      options: { redirectTo: getAuthCallbackUrl() },
     })
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+      <Card className="w-full max-w-sm border-white/10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Sign in to Aplio</CardTitle>
           <CardDescription>
