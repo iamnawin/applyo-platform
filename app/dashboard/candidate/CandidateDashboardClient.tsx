@@ -40,9 +40,52 @@ type SuggestedJob = {
 
 export function CandidateDashboardClient({ user, candidate, initialResumes, initialPreferences }: Props) {
   const router = useRouter()
+  import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { LayoutDashboard, FileText, Settings, ListChecks, History, LogOut, Menu, X, Edit } from 'lucide-react' // Added Edit icon
+import { createClient } from '@/lib/supabase/client'
+import { ResumeUploader } from '@/components/candidate/ResumeUploader'
+import { PreferenceForm } from '@/components/candidate/PreferenceForm'
+import { ResumeProfileForm } from '@/components/candidate/ResumeProfileForm' // Added ResumeProfileForm import
+import { ApprovalQueueCard } from '@/components/candidate/ApprovalQueueCard'
+import { ApplicationRow } from '@/components/candidate/ApplicationRow'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import type { Resume, Candidate, Application, Job, Preference, ParsedResume } from '@/lib/types' // Added ParsedResume import
+
+interface Props {
+  user: { id: string; email: string; name: string }
+  candidate: Candidate | null
+  initialResumes: Resume[]
+  initialPreferences: Preference | null
+}
+
+type Tab = 'overview' | 'resume' | 'resume-profile' | 'preferences' | 'queue' | 'applications' // Added 'resume-profile'
+
+const NAV = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'resume', label: 'Upload Resume', icon: FileText }, // Changed label
+  { id: 'resume-profile', label: 'Edit Resume Profile', icon: Edit }, // New tab
+  { id: 'preferences', label: 'Preferences', icon: Settings },
+  { id: 'queue', label: 'Approval Queue', icon: ListChecks },
+  { id: 'applications', label: 'Applications', icon: History },
+] as const
+
+type ApplicationWithJob = Application & { job: Job }
+type SuggestedJob = {
+  job: Job
+  score: number
+  reasons: string[]
+}
+
+export function CandidateDashboardClient({ user, candidate, initialResumes, initialPreferences }: Props) {
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>('overview')
   const [resumes, setResumes] = useState<Resume[]>(initialResumes)
   const [preferences, setPreferences] = useState<Preference | null>(initialPreferences)
+  const [resumeProfileData, setResumeProfileData] = useState<ParsedResume | null>(null) // New state for resume profile
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const [queue, setQueue] = useState<ApplicationWithJob[]>([])
@@ -79,10 +122,24 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
     }
   }, [appsLoaded])
 
+  const loadResumeProfile = useCallback(async () => {
+    if (!candidate?.id) return
+    try {
+      const res = await fetch(`/api/candidate/${candidate.id}/resume-profile`)
+      if (res.ok) {
+        const data = await res.json()
+        setResumeProfileData(data)
+      }
+    } catch (error) {
+      console.error('Failed to load resume profile:', error)
+    }
+  }, [candidate?.id])
+
   useEffect(() => {
     if (tab === 'queue') loadQueue()
     if (tab === 'applications') loadApplications()
-  }, [tab, loadQueue, loadApplications])
+    if (tab === 'resume-profile') loadResumeProfile() // Load resume profile when tab is active
+  }, [tab, loadQueue, loadApplications, loadResumeProfile])
 
   useEffect(() => {
     if (tab === 'overview') {
@@ -303,12 +360,13 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
           {tab === 'resume' && (
             <div className="space-y-6">
               <div>
-                <h1 className="text-2xl font-bold">Resume</h1>
+                <h1 className="text-2xl font-bold">Upload Resume</h1>
                 <p className="text-muted-foreground mt-1">Upload your latest resume. If AI is unavailable, Aplio will store it and parse it later.</p>
               </div>
               <ResumeUploader onUploaded={r => {
                 setResumes(prev => [r, ...prev])
                 setQueueLoaded(false)
+                setResumeProfileData(r.parsed_data) // Update resume profile data when new resume is uploaded
               }} />
               {resumes.length > 0 && (
                 <div>
@@ -339,6 +397,20 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {tab === 'resume-profile' && candidate?.id && ( // New tab rendering
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-2xl font-bold">Edit Resume Profile</h1>
+                <p className="text-muted-foreground mt-1">Review and refine the information Aplio uses for matching and applications.</p>
+              </div>
+              <ResumeProfileForm
+                candidateId={candidate.id}
+                initialResumeData={resumeProfileData ?? undefined}
+                onSaved={setResumeProfileData}
+              />
             </div>
           )}
 
