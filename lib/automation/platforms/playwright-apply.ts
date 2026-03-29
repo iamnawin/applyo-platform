@@ -1,7 +1,8 @@
 import { chromium, Page, Locator } from 'playwright'
-import { ParsedResume } from '@/lib/types'
+import { ParsedResume, NormalizedJob, Application, Job } from '@/lib/types' // Added NormalizedJob, Application, Job
 import { inferFieldPurpose } from '@/lib/ai/infer-field-purpose' // Import AI utility
 import { findSubmitButton } from '@/lib/ai/find-submit-button' // Import AI utility
+import { selectDropdownOption } from '@/lib/ai/select-dropdown-option' // Import AI utility
 
 interface ApplyToJobParams {
   jobUrl: string
@@ -9,7 +10,8 @@ interface ApplyToJobParams {
   resumeFile: Buffer
   resumeFileName: string
   log: (message: string) => Promise<void>
-  generatedCoverLetter?: string // Added generatedCoverLetter
+  generatedCoverLetter?: string
+  application: Application & { job: Job } // Added application to get normalized_data
 }
 
 /**
@@ -22,7 +24,8 @@ export async function applyToJob({
   resumeFile,
   resumeFileName,
   log,
-  generatedCoverLetter, // Destructure generatedCoverLetter
+  generatedCoverLetter,
+  application, // Destructure application
 }: ApplyToJobParams): Promise<void> {
   await log(`Launching browser to apply for job at: ${jobUrl}`)
   const browser = await chromium.launch({ headless: true })
@@ -63,7 +66,25 @@ export async function applyToJob({
       await log('WARNING: Could not find a resume file input on the page.')
     }
 
-    // TODO: Add logic for dropdowns/selects (pronouns, etc.)
+    // --- Dropdown/Select Logic ---
+    await log('Attempting to fill dropdowns using AI inference.')
+    const selectLocators = page.locator('select')
+    const selectCount = await selectLocators.count()
+    for (let i = 0; i < selectCount; i++) {
+      const locator = selectLocators.nth(i)
+      const boundingBox = await locator.boundingBox()
+      if (!boundingBox) continue // Skip hidden elements
+
+      const htmlSnippet = await page.evaluate(el => el.outerHTML, await locator.elementHandle())
+      const selectionResult = await selectDropdownOption(htmlSnippet, resume, application.job.normalized_data) // Assuming application.job.normalized_data is available
+
+      if (selectionResult.selected_value && selectionResult.confidence_score > 0.7) {
+        await locator.selectOption(selectionResult.selected_value)
+        await log(`Selected AI-inferred option "${selectionResult.selected_value}" for dropdown (confidence: ${selectionResult.confidence_score.toFixed(2)})`)
+      } else {
+        await log(`WARNING: Could not AI-infer option for dropdown. Reasoning: ${selectionResult.reasoning}`)
+      }
+    }
 
     // --- Submit Button Logic ---
     await log('Attempting to find and click submit button using AI inference.')
