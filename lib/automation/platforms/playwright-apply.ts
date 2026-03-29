@@ -1,6 +1,7 @@
 import { chromium, Page, Locator } from 'playwright'
 import { ParsedResume } from '@/lib/types'
 import { inferFieldPurpose } from '@/lib/ai/infer-field-purpose' // Import AI utility
+import { findSubmitButton } from '@/lib/ai/find-submit-button' // Import AI utility
 
 interface ApplyToJobParams {
   jobUrl: string
@@ -63,7 +64,28 @@ export async function applyToJob({
     }
 
     // TODO: Add logic for dropdowns/selects (pronouns, etc.)
-    // TODO: Add logic to find and click the final "Submit" button.
+
+    // --- Submit Button Logic ---
+    await log('Attempting to find and click submit button using AI inference.')
+    const formHtml = await page.content() // Get entire page content or specific form content
+    const submitButtonResult = await findSubmitButton(formHtml)
+
+    if (submitButtonResult.selector && submitButtonResult.confidence_score > 0.7) {
+      await page.locator(submitButtonResult.selector).click()
+      await log(`Clicked AI-inferred submit button (selector: "${submitButtonResult.selector}", confidence: ${submitButtonResult.confidence_score.toFixed(2)})`)
+      await page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => log('No navigation after submit, assuming form submitted successfully.'))
+    } else {
+      await log(`WARNING: Could not find AI-inferred submit button. Reasoning: ${submitButtonResult.reasoning}`)
+      // Fallback: Try to find common submit buttons
+      const commonSubmitButtons = page.locator('button:has-text("Submit"), button:has-text("Apply"), input[type="submit"], button[type="submit"]')
+      if (await commonSubmitButtons.count() > 0) {
+        await commonSubmitButtons.first().click()
+        await log('Clicked a common submit button as a fallback.')
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => log('No navigation after fallback submit, assuming form submitted successfully.'))
+      } else {
+        await log('WARNING: No submit button found, application might not be submitted.')
+      }
+    }
 
     await log('Finished attempting to fill form fields.')
     await page.screenshot({ path: `apply-screenshot-${Date.now()}.png`, fullPage: true })
