@@ -58,6 +58,15 @@ The following features and modifications have been implemented:
     -   Enhanced `lib/automation/index.ts` (`triggerApply`) and `lib/automation/router.ts` (`routeApply`) to accept and forward the `generatedCoverLetter`.
     -   Modified platform-specific drivers (`lib/automation/platforms/greenhouse-apply.ts` and `lib/automation/platforms/playwright-apply.ts`) to utilize the `generatedCoverLetter` for filling cover letter fields during automated application.
 
+### 7. AI-Driven Form Interaction
+-   **Description:** Enhanced the generic Playwright automation script with a suite of AI-powered tools to intelligently interact with complex and non-standard application forms.
+-   **Key Changes:**
+    -   Created `lib/ai/infer-field-purpose.ts` to deduce the intended purpose of text inputs (e.g., 'name', 'email').
+    -   Created `lib/ai/find-submit-button.ts` to locate the final submission button on a form.
+    -   Created `lib/ai/select-dropdown-option.ts` to intelligently choose the correct option from a `<select>` dropdown.
+    -   Created `lib/ai/select-checkbox-radio.ts` to select the appropriate options from checkbox and radio button groups.
+    -   Integrated these AI utilities into `lib/automation/platforms/playwright-apply.ts`, making the generic application script significantly more robust and adaptable to various form layouts.
+
 ## Future Things (Next Steps & Vision)
 
 Based on the user's vision, here are potential future development areas:
