@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Building2, MapPin, Briefcase, ExternalLink, Check, X, Loader2 } from 'lucide-react'
+import { Building2, MapPin, Briefcase, ExternalLink, Check, X, Loader2, Sparkles, ChevronDown } from 'lucide-react' // Added Sparkles and ChevronDown
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { ScoreCard } from './ScoreCard'
-import type { Application, Job } from '@/lib/types'
+import { generateApplicationContent } from '@/lib/ai/generate-application-content' // Import AI function
+import type { Application, Job, ParsedResume } from '@/lib/types' // Import ParsedResume
 
 interface Props {
   application: Application & { job: Job }
@@ -15,16 +16,28 @@ interface Props {
 
 export function ApprovalQueueCard({ application, onAction }: Props) {
   const [loading, setLoading] = useState<'approved' | 'skipped' | null>(null)
+  const [generatedContent, setGeneratedContent] = useState<string | null>(null)
+  const [generatingContent, setGeneratingContent] = useState(false)
+  const [showContentPreview, setShowContentPreview] = useState(false)
+
   const job = application.job
   const normalized = job.normalized_data
 
   async function handleAction(action: 'approved' | 'skipped') {
     setLoading(action)
     try {
+      const body: { application_id: string; action: 'approved' | 'skipped'; generated_cover_letter?: string } = {
+        application_id: application.id,
+        action,
+      }
+      if (action === 'approved' && generatedContent) {
+        body.generated_cover_letter = generatedContent
+      }
+
       const res = await fetch(`/api/approvals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ application_id: application.id, action }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error('Action failed')
       onAction(application.id, action)
@@ -32,6 +45,30 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
       // show error in production
     } finally {
       setLoading(null)
+    }
+  }
+
+  async function handleGenerateContent() {
+    setGeneratingContent(true)
+    setGeneratedContent(null)
+    try {
+      // Fetch candidate's parsed resume data
+      const res = await fetch(`/api/candidate/${application.candidate_id}/resume-profile`)
+      if (!res.ok) throw new Error('Failed to fetch resume profile.')
+      const parsedResume: ParsedResume = await res.json()
+
+      const content = await generateApplicationContent(
+        parsedResume,
+        normalized,
+        'cover_letter'
+      )
+      setGeneratedContent(content)
+      setShowContentPreview(true)
+    } catch (err) {
+      console.error('Error generating content:', err)
+      setGeneratedContent('Failed to generate content. Please try again.')
+    } finally {
+      setGeneratingContent(false)
     }
   }
 
@@ -115,6 +152,40 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
 
         <div className="mt-4">
           <ScoreCard overall={score} breakdown={breakdown} />
+        </div>
+
+        <div className="mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateContent}
+            disabled={generatingContent}
+            className="w-full"
+          >
+            {generatingContent ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            {generatingContent ? 'Generating...' : 'Generate Cover Letter'}
+          </Button>
+
+          {generatedContent && (
+            <div className="mt-4 border rounded-lg">
+              <button
+                className="flex items-center justify-between w-full p-3 text-sm font-medium"
+                onClick={() => setShowContentPreview(prev => !prev)}
+              >
+                <span>Cover Letter Preview</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${showContentPreview ? 'rotate-180' : ''}`} />
+              </button>
+              {showContentPreview && (
+                <div className="p-3 border-t text-sm text-muted-foreground whitespace-pre-wrap">
+                  {generatedContent}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </CardContent>
 

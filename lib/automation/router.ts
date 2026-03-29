@@ -33,7 +33,7 @@ function detectPlatform(jobUrl: string): string {
  * Routes an application to the correct automation platform handler.
  * This function orchestrates the entire automation process for a single application.
  */
-export async function routeApply(applicationId: string): Promise<void> {
+export async function routeApply(applicationId: string, generatedCoverLetter?: string): Promise<void> { // Added generatedCoverLetter
   const log = (message: string) => logToApplication(applicationId, message)
   const supabase = createServerClient()
 
@@ -79,6 +79,7 @@ export async function routeApply(applicationId: string): Promise<void> {
       resumeFile,
       resumeFileName,
       log,
+      generatedCoverLetter, // Pass generatedCoverLetter
     }
 
     switch (platform) {

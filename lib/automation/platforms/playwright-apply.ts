@@ -7,6 +7,7 @@ interface ApplyToJobParams {
   resumeFile: Buffer
   resumeFileName: string
   log: (message: string) => Promise<void>
+  generatedCoverLetter?: string // Added generatedCoverLetter
 }
 
 /**
@@ -19,6 +20,7 @@ export async function applyToJob({
   resumeFile,
   resumeFileName,
   log,
+  generatedCoverLetter, // Destructure generatedCoverLetter
 }: ApplyToJobParams): Promise<void> {
   await log(`Launching browser to apply for job at: ${jobUrl}`)
   const browser = await chromium.launch({ headless: true })
@@ -36,7 +38,10 @@ export async function applyToJob({
     if (resume.location) await fillField(page, log, ['location', 'city'], resume.location)
 
     // --- Custom Questions (Text Areas) ---
-    if (resume.summary) {
+    // Prioritize generated cover letter if available, otherwise use resume summary
+    if (generatedCoverLetter) {
+      await fillTextArea(page, log, ['cover letter', 'additional information', 'summary'], generatedCoverLetter)
+    } else if (resume.summary) {
       await fillTextArea(page, log, ['cover letter', 'additional information', 'summary'], resume.summary)
     }
 

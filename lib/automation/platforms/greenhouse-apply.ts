@@ -7,6 +7,7 @@ interface ApplyToJobParams {
   resumeFile: Buffer
   resumeFileName: string
   log: (message: string) => Promise<void>
+  generatedCoverLetter?: string // Added generatedCoverLetter
 }
 
 /**
@@ -19,6 +20,7 @@ export async function applyToGreenhouse({
   resumeFile,
   resumeFileName,
   log,
+  generatedCoverLetter, // Destructure generatedCoverLetter
 }: ApplyToJobParams): Promise<void> {
   await log(`Launching browser to apply for Greenhouse job at: ${jobUrl}`)
   const browser = await chromium.launch({ headless: true })
@@ -37,6 +39,11 @@ export async function applyToGreenhouse({
     if (resume.email) await fillField(page, log, ['email', 'email address'], resume.email)
     if (resume.phone) await fillField(page, log, ['phone', 'phone number'], resume.phone)
     if (resume.location) await fillField(page, log, ['location', 'city'], resume.location)
+
+    // --- Cover Letter Logic ---
+    if (generatedCoverLetter) {
+      await fillTextArea(page, log, ['cover letter', 'cover_letter', 'message to hiring manager'], generatedCoverLetter)
+    }
 
     // --- Resume Upload Logic ---
     await log('Searching for resume file input.')
@@ -81,6 +88,17 @@ async function fillField(page: Page, log: Function, labels: string[], value: str
     if (await locator.count() > 0) {
       await locator.first().fill(value)
       await log(`Filled field (label/placeholder: "${label}") with value: ${value}`)
+      return
+    }
+  }
+}
+
+async function fillTextArea(page: Page, log: Function, labels: string[], value: string) {
+  for (const label of labels) {
+    const locator = page.getByLabel(label, { exact: false })
+    if (await locator.count() > 0) {
+      await locator.first().fill(value)
+      await log(`Filled textarea (label: "${label}")`)
       return
     }
   }
