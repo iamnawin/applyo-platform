@@ -26,12 +26,21 @@ export async function middleware(request: NextRequest) {
   )
 
   // Refresh session if expired
+  const { pathname } = request.nextUrl
+  const protectedPrefixes = ['/dashboard', '/queue', '/preferences', '/matches']
+  const authPages = ['/login', '/signup', '/']
+
+  // Skip auth check for static assets and non-protected/non-auth pages to avoid middleware timeout
+  const needsAuthCheck = protectedPrefixes.some(p => pathname.startsWith(p)) || authPages.includes(pathname)
+
+  if (!needsAuthCheck) {
+    return supabaseResponse
+  }
+
+  // Refresh session if expired and route actually needs it
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
-
   // Protected routes — redirect to login if not authed
-  const protectedPrefixes = ['/dashboard', '/queue', '/preferences', '/matches']
   if (!user && protectedPrefixes.some(p => pathname.startsWith(p))) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -39,7 +48,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Already logged in — redirect away from auth pages and root
-  if (user && (pathname === '/login' || pathname === '/signup' || pathname === '/')) {
+  if (user && authPages.includes(pathname)) {
     const role = user.user_metadata?.role
     const url = request.nextUrl.clone()
     url.pathname = role === 'company' ? '/dashboard/company' : '/dashboard/candidate'
