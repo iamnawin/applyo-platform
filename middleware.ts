@@ -4,7 +4,17 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
-  // Optimized cookie handling for better performance
+  const { pathname } = request.nextUrl
+  
+  // 1. PERFORMANCE GUARD: Immediately skip middleware for all static assets and public pages
+  // This prevents the 50ms Edge limit from blocking JS chunks or the Landing Page.
+  const isStatic = pathname.startsWith('/_next') || pathname.includes('favicon.ico') || pathname.includes('.')
+  const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup'
+  
+  if (isStatic || isPublicPage) {
+    return supabaseResponse
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -23,42 +33,23 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { pathname } = request.nextUrl
-  const protectedPrefixes = ['/dashboard', '/queue', '/preferences', '/matches']
-  const authPages = ['/login', '/signup'] // Removed root '/' to prevent timeouts on landing page
-
-  // 1. Skip expensive logic for static assets and non-sensitive routes
+  // 2. PROTECTED ROUTE GUARD: Only run auth check for sensitive paths
+  const protectedPrefixes = ['/dashboard', '/queue', '/preferences', '/matches', '/api/protected']
   const isProtected = protectedPrefixes.some(p => pathname.startsWith(p))
-  const isAuthPage = authPages.includes(pathname)
 
-  if (!isProtected && !isAuthPage) {
-    return supabaseResponse
-  }
-
-  // 2. Performance Guard: Only call getUser() if an auth cookie actually exists
-  // This prevents anonymous users from triggering a slow remote call on every visit.
-  const hasAuthCookie = request.cookies.getAll().some(c => c.name.startsWith('sb-'))
-  if (!hasAuthCookie && isProtected) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
-
-  if (hasAuthCookie) {
-    const { data: { user } } = await supabase.auth.getUser()
-
-    // Protected routes — redirect to login if not authed
-    if (!user && isProtected) {
+  if (isProtected) {
+    // Only call getUser if we have a cookie, to avoid unnecessary remote calls
+    const hasAuthCookie = request.cookies.getAll().some(c => c.name.startsWith('sb-'))
+    if (!hasAuthCookie) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
 
-    // Already logged in — redirect away from auth pages
-    if (user && isAuthPage) {
-      const role = user.user_metadata?.role
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       const url = request.nextUrl.clone()
-      url.pathname = role === 'company' ? '/dashboard/company' : '/dashboard/candidate'
+      url.pathname = '/login'
       return NextResponse.redirect(url)
     }
   }
@@ -68,6 +59,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
