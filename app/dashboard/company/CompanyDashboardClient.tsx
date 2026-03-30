@@ -364,7 +364,7 @@ export function CompanyDashboardClient({ user }: Props) {
                 <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
                   <Briefcase className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No job postings yet</p>
-                  <p className="text-sm mt-1">Click "Post new job" to create your first role</p>
+                  <p className="text-sm mt-1">Click &quot;Post new job&quot; to create your first role</p>
                 </div>
               ) : (
                 <div className="space-y-3">
