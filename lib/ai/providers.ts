@@ -12,7 +12,7 @@ const DEFAULT_EMBEDDING_PROVIDER_ORDER: EmbeddingProvider[] = ['gemini']
 const SUPPORTED_TEXT_PROVIDERS = new Set<TextProvider>(DEFAULT_TEXT_PROVIDER_ORDER)
 const SUPPORTED_EMBEDDING_PROVIDERS = new Set<EmbeddingProvider>(['gemini', 'openai'])
 
-export const GEMINI_EMBEDDING_DIMENSIONS = 768
+export const GEMINI_EMBEDDING_DIMENSIONS = 1536
 const OPENAI_EMBEDDING_DIMENSIONS = 1536
 
 export class AIProviderError extends Error {
@@ -180,14 +180,14 @@ async function generateGeminiEmbedding(text: string): Promise<number[]> {
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'models/gemini-embedding-001',
+        model: 'models/text-embedding-004',
         content: {
           parts: [{ text }],
         },
