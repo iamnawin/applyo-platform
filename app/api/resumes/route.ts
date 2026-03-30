@@ -7,8 +7,11 @@ import { getResumesByCandidateId } from '@/lib/db/resumes'
 import { generateMatchesForCandidate } from '@/lib/services/match-service'
 import { AIProviderError, getAIErrorMessage } from '@/lib/ai/providers'
 
-// POST /api/resumes — upload PDF, parse it, store embedding
+// Vercel Hobby tier has a 10s timeout. We must return before then.
+const TIMEOUT_MS = 8500 
+
 export async function POST(req: NextRequest) {
+  const startTime = Date.now()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -25,16 +28,15 @@ export async function POST(req: NextRequest) {
   try {
     formData = await req.formData()
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Failed to parse form data'
-    return NextResponse.json({ error: msg }, { status: 400 })
+    return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })
   }
   const file = formData.get('file') as File | null
 
-  if (!file) {
+  if (!file || !(file instanceof File)) {
     return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
   }
-  const isPdf = file.type === 'application/pdf' || file.name?.endsWith('.pdf')
-  if (!isPdf) {
+  
+  if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
     return NextResponse.json({ error: 'A PDF file is required' }, { status: 400 })
   }
 
@@ -42,20 +44,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'File must be under 5 MB' }, { status: 400 })
   }
 
-  // 1. Upload PDF to Supabase Storage
+  // 1. Upload PDF to Supabase Storage (Quick)
   const fileName = `${user.id}/${Date.now()}.pdf`
   const { error: uploadError } = await supabase.storage
     .from('resumes')
     .upload(fileName, file, { contentType: 'application/pdf', upsert: false })
 
   if (uploadError) {
-    // High-visibility error to help users fix their Supabase Bucket setup
     return NextResponse.json({ 
-      error: `Storage Error: ${uploadError.message}. Make sure the 'resumes' bucket exists and is writable in your Supabase dashboard.`
+      error: `Storage Error: ${uploadError.message}. Make sure the 'resumes' bucket exists.`
     }, { status: 500 })
   }
 
-  // 2. Extract text from PDF
+  // 2. Extract text from PDF (Moderate)
   const arrayBuffer = await file.arrayBuffer()
   let pdfText = ''
   try {
@@ -63,53 +64,57 @@ export async function POST(req: NextRequest) {
     const result = await pdfParse(Buffer.from(arrayBuffer))
     pdfText = result.text || '[Empty PDF content]'
   } catch (err) {
-    console.warn('[PDF] Extraction failed, continuing with placeholder:', err)
+    console.warn('[PDF] Extraction failed:', err)
     pdfText = '[PDF text extraction failed]'
   }
 
-  // 3. Parse + embed + store (AI Phase)
+  // 3. AI Parsing Phase (Slow)
+  // We use a timeout race to ensure we return to Vercel before the 10s cutoff.
   try {
-    const resume = await parseAndStore(candidate.id, pdfText, fileName)
+    const aiPromise = parseAndStore(candidate.id, pdfText, fileName)
+    
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('TIMEOUT_REACHED')), TIMEOUT_MS)
+    )
+
+    // Result will either be the resume OR a timeout error
+    const resume = await Promise.race([aiPromise, timeoutPromise]) as any
 
     // Fire-and-forget matching
     generateMatchesForCandidate(candidate.id).catch(() => {})
 
     return NextResponse.json(resume, { status: 201 })
   } catch (err) {
-    console.error('Resume AI phase failed', {
+    const isTimeout = err instanceof Error && err.message === 'TIMEOUT_REACHED'
+    
+    console.error(isTimeout ? '[API] Timeout reached, returning pending status' : 'Resume AI phase failed', {
       candidateId: candidate.id,
       error: err instanceof Error ? err.message : 'Unknown AI error',
     })
 
-    if (err instanceof AIProviderError) {
-      const pendingResume = await storePendingResume(candidate.id, fileName)
-      return NextResponse.json(
-        {
-          ...pendingResume,
-          notice: `Resume uploaded, but AI parsing is temporarily unavailable: ${err.message}. It will be retried later.`,
-        },
-        { status: 201 },
-      )
-    }
-
-    const message = getAIErrorMessage(err) ?? (err instanceof Error ? err.message : 'Processing failed')
-    return NextResponse.json({ error: message }, { status: 500 })
+    // If it timed out or hit a provider error, return a "Pending" resume
+    const pendingResume = await storePendingResume(candidate.id, fileName)
+    
+    return NextResponse.json(
+      {
+        ...pendingResume,
+        notice: isTimeout 
+          ? 'Resume uploaded! AI parsing is taking a while and will finish in the background.'
+          : `Resume uploaded, but AI parsing hit a snag: ${getAIErrorMessage(err) || 'Retrying soon.'}`,
+      },
+      { status: 201 },
+    )
   }
 }
 
-// GET /api/resumes — list resumes for current user
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const candidate = await getCandidateByUserId(user.id)
-  if (!candidate) {
-    return NextResponse.json([], { status: 200 })
-  }
+  if (!candidate) return NextResponse.json([], { status: 200 })
 
   const resumes = await getResumesByCandidateId(candidate.id)
   return NextResponse.json(resumes)

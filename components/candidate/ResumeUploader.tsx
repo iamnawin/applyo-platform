@@ -42,23 +42,44 @@ export function ResumeUploader({ onUploaded }: Props) {
 
     try {
       const res = await fetch('/api/resumes', { method: 'POST', body: form })
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error ?? 'Upload failed')
+      
+      // 1. Get raw text to handle empty/malformed responses safely
+      const rawText = await res.text()
+      let data: any = null
+      
+      if (rawText) {
+        try {
+          data = JSON.parse(rawText)
+        } catch (parseErr) {
+          console.error('[Upload] Malformed JSON:', rawText.slice(0, 500))
+        }
       }
 
+      // 2. Check for HTTP errors
+      if (!res.ok) {
+        throw new Error(data?.error || `Upload failed (Status ${res.status})`)
+      }
+
+      // 3. Success!
       setStatus('success')
       setSuccessMsg(
-        typeof data.notice === 'string'
-          ? data.notice
-          : 'Resume uploaded successfully!',
+        data?.notice || 'Resume uploaded successfully!'
       )
-      onUploaded(data as Resume)
+      
+      if (data && onUploaded) {
+        onUploaded(data as Resume)
+      }
     } catch (err) {
       setStatus('error')
       const message = err instanceof Error ? err.message : 'Upload failed'
-      const normalizedMessage = message.includes('quota') || message.includes('429') ? GENERIC_UPLOAD_ERROR : message
+      
+      // Handle the "Unexpected end of JSON input" error / timeout specifically
+      const isTimeout = message.toLowerCase().includes('json') || message.toLowerCase().includes('end of input')
+      
+      const normalizedMessage = isTimeout 
+        ? 'The server is busy parsing your resume. It will appear in your dashboard in a few seconds!'
+        : (message.includes('quota') || message.includes('429') ? GENERIC_UPLOAD_ERROR : message)
+      
       setErrorMsg(normalizedMessage)
     }
   }
@@ -111,7 +132,13 @@ export function ResumeUploader({ onUploaded }: Props) {
           {status === 'error' && (
             <>
               <AlertCircle className="h-10 w-10 text-destructive" />
-              <p className="text-sm font-medium text-destructive">{errorMsg}</p>
+              <div className="text-center">
+                <p className="text-sm font-medium text-destructive">{errorMsg}</p>
+                {/* Special case: if it was a timeout, let them know it's actually fine */}
+                {errorMsg.includes('dashboard') && (
+                  <p className="text-xs text-muted-foreground mt-1">Try refreshing the page in 1 minute.</p>
+                )}
+              </div>
               <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); setStatus('idle') }}>
                 Try again
               </Button>
