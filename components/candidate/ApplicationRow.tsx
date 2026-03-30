@@ -6,18 +6,22 @@ const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'success' | 'war
   pending: 'secondary',
   approved: 'warning',
   applied: 'success',
+  submitted: 'success',
   interview: 'default',
   rejected: 'destructive',
   skipped: 'outline',
+  failed: 'destructive',
 }
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   approved: 'Queued',
   applied: 'Applied',
+  submitted: 'Applied',
   interview: 'Interview',
   rejected: 'Rejected',
   skipped: 'Skipped',
+  failed: 'Failed to Apply',
 }
 
 interface Props {

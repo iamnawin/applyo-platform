@@ -35,6 +35,9 @@ export function PreferenceForm({ initial, onSaved }: Props) {
   const [roleInput, setRoleInput] = useState('')
   const [locationInput, setLocationInput] = useState('')
   const [blacklistInput, setBlacklistInput] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
   // New granular preferences inputs
   const [targetCompanyInput, setTargetCompanyInput] = useState('')
   const [preferredIndustryInput, setPreferredIndustryInput] = useState('')

@@ -3,8 +3,11 @@ import type { NormalizedJob } from '@/lib/schemas/job'
 export type { ParsedResume, NormalizedJob }
 export type { MatchScore, ApprovalAction } from '@/lib/schemas/application'
 export type { PreferenceInput as Preference } from '@/lib/schemas/preference'
-export type { CandidateInput as Candidate } from '@/lib/schemas/candidate'
-export type { CompanyInput as Company } from '@/lib/schemas/company'
+import type { CandidateInput } from '@/lib/schemas/candidate'
+import type { CompanyInput } from '@/lib/schemas/company'
+
+export type Candidate = CandidateInput
+export type Company = CompanyInput
 
 export type ResumeProcessingStatus = 'ready' | 'pending_ai' | 'failed_ai'
 
@@ -36,10 +39,12 @@ export interface Application {
   candidate_id: string
   job_id: string
   match_score: number
-  match_reasons: string[] | null // Added match_reasons
-  status: 'pending' | 'approved' | 'skipped' | 'applied' | 'rejected' | 'interview'
+  match_reasons: string[] | null
+  status: 'pending' | 'approved' | 'skipped' | 'applied' | 'rejected' | 'interview' | 'submitted' | 'failed' // Added submitted/failed
   applied_at: string | null
   created_at: string
+  job?: Job // Added relation
+  candidate?: Candidate & { resumes?: Resume[] } // Added relation
 }
 
 // Placeholder — replace with generated Supabase types

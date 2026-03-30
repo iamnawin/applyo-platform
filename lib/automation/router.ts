@@ -4,12 +4,6 @@ import {
   updateApplicationAutomationStatus,
 } from '@/lib/db/applications'
 import { createServerClient } from '@/lib/db/client'
-import {
-  getApplicationById,
-  logToApplication,
-  updateApplicationAutomationStatus,
-} from '@/lib/db/applications'
-import { createServerClient } from '@/lib/db/client'
 import { applyToJob } from './platforms/playwright-apply' // Generic fallback
 import { applyToGreenhouse } from './platforms/greenhouse-apply' // Greenhouse driver
 import { applyToIndeed } from './platforms/indeed-apply' // Indeed driver
@@ -79,11 +73,12 @@ export async function routeApply(applicationId: string, generatedCoverLetter?: s
 
     const applyParams = {
       jobUrl,
+      jobData: application.job.normalized_data,
       resume: activeResume.parsed_data,
       resumeFile,
       resumeFileName,
       log,
-      generatedCoverLetter, // Pass generatedCoverLetter
+      generatedCoverLetter,
     }
 
     switch (platform) {

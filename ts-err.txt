@@ -1,0 +1,1 @@
+﻿app/dashboard/candidate/CandidateDashboardClient.tsx(493,1): error TS1005: '}' expected.

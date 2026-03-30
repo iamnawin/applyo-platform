@@ -1,4 +1,4 @@
-import { google_web_search } from '@/lib/tools' // Assuming google_web_search is available as a tool
+import { google_web_search } from '@/lib/utils/web' // Mock search utility for now
 import { runStructuredTextTask } from '@/lib/ai/providers'
 import { z } from 'zod'
 

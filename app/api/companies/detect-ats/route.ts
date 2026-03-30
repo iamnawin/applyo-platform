@@ -5,8 +5,11 @@ export async function POST(request: Request) {
   // TODO: Implement authentication/authorization for this endpoint
   // Only authorized users or internal services should be able to trigger this.
 
+  let careerPageUrl: string | undefined
+
   try {
-    const { careerPageUrl } = await request.json()
+    const body = await request.json()
+    careerPageUrl = body.careerPageUrl
 
     if (!careerPageUrl) {
       return NextResponse.json({ error: 'careerPageUrl is required' }, { status: 400 })
@@ -16,7 +19,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result)
   } catch (error) {
-    console.error(`Error detecting ATS for ${careerPageUrl}:`, error)
+    console.error(`Error detecting ATS for ${careerPageUrl || 'unknown'}:`, error)
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.'
     return NextResponse.json({ error: `Failed to detect ATS: ${errorMessage}` }, { status: 500 })
   }

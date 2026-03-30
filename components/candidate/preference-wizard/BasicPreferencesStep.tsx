@@ -18,7 +18,9 @@ interface BasicPreferencesStepProps {
 export function BasicPreferencesStep({ initialData, onUpdate }: BasicPreferencesStepProps) {
   const [roles, setRoles] = useState<string[]>(initialData.desired_roles ?? [])
   const [locations, setLocations] = useState<string[]>(initialData.preferred_locations ?? [])
-  const [jobTypes, setJobTypes] = useState<string[]>(initialData.job_types ?? [])
+  const [jobTypes, setJobTypes] = useState<('full-time' | 'part-time' | 'contract' | 'remote')[]>(
+    (initialData.job_types as any) ?? []
+  )
   const [minSalary, setMinSalary] = useState(initialData.min_salary?.toString() ?? '')
   const [maxPerDay, setMaxPerDay] = useState((initialData.max_applications_per_day ?? 10).toString())
   const [blacklisted, setBlacklisted] = useState<string[]>(initialData.blacklisted_companies ?? [])
@@ -48,7 +50,7 @@ export function BasicPreferencesStep({ initialData, onUpdate }: BasicPreferences
     setList(list.filter(v => v !== value))
   }
 
-  function toggleJobType(type: string) {
+  function toggleJobType(type: 'full-time' | 'part-time' | 'contract' | 'remote') {
     setJobTypes(prev =>
       prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
     )

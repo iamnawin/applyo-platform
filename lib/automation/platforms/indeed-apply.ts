@@ -12,11 +12,10 @@ export async function applyToIndeed({
   resumeFileName,
   log,
   generatedCoverLetter,
+  jobData, // Added missing parameter
 }: ApplyToJobParams): Promise<void> {
   await log(`Applying to Indeed job at: ${jobUrl} (using generic Playwright script)`)
   // For now, we can call the generic playwright-apply as Indeed often redirects.
-  // In the future, if Indeed has a consistent internal application flow,
-  // specific logic can be added here.
   const { applyToJob } = await import('./playwright-apply')
-  await applyToJob({ jobUrl, resume, resumeFile, resumeFileName, log, generatedCoverLetter })
+  await applyToJob({ jobUrl, resume, resumeFile, resumeFileName, log, generatedCoverLetter, jobData })
 }

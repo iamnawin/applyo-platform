@@ -3,46 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { LayoutDashboard, FileText, Settings, ListChecks, History, LogOut, Menu, X } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { ResumeUploader } from '@/components/candidate/ResumeUploader'
-import { PreferenceForm } from '@/components/candidate/PreferenceForm'
-import { ApprovalQueueCard } from '@/components/candidate/ApprovalQueueCard'
-import { ApplicationRow } from '@/components/candidate/ApplicationRow'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import type { Resume, Candidate, Application, Job, Preference } from '@/lib/types'
-
-interface Props {
-  user: { id: string; email: string; name: string }
-  candidate: Candidate | null
-  initialResumes: Resume[]
-  initialPreferences: Preference | null
-}
-
-type Tab = 'overview' | 'resume' | 'preferences' | 'queue' | 'applications'
-
-const NAV = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'resume', label: 'Resume', icon: FileText },
-  { id: 'preferences', label: 'Preferences', icon: Settings },
-  { id: 'queue', label: 'Approval Queue', icon: ListChecks },
-  { id: 'applications', label: 'Applications', icon: History },
-] as const
-
-type ApplicationWithJob = Application & { job: Job }
-type SuggestedJob = {
-  job: Job
-  score: number
-  reasons: string[]
-}
-
-export function CandidateDashboardClient({ user, candidate, initialResumes, initialPreferences }: Props) {
-  const router = useRouter()
-  import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { LayoutDashboard, FileText, Settings, ListChecks, History, LogOut, Menu, X, Edit } from 'lucide-react' // Added Edit icon
 import { createClient } from '@/lib/supabase/client'
 import { ResumeUploader } from '@/components/candidate/ResumeUploader'

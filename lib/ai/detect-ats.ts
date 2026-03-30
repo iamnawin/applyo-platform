@@ -1,4 +1,4 @@
-import { web_fetch } from '@/lib/tools' // Assuming web_fetch is available as a tool
+import { web_fetch } from '@/lib/utils/web' // Standard fetch utility
 import { runStructuredTextTask } from '@/lib/ai/providers'
 import { z } from 'zod'
 
