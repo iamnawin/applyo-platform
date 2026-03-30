@@ -180,9 +180,12 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
                 <ChevronDown className={`h-4 w-4 transition-transform ${showContentPreview ? 'rotate-180' : ''}`} />
               </button>
               {showContentPreview && (
-                <div className="p-3 border-t text-sm text-muted-foreground whitespace-pre-wrap">
-                  {generatedContent}
-                </div>
+                <textarea
+                  className="w-full min-h-[200px] p-3 border-t text-sm text-foreground bg-transparent resize-y focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={generatedContent}
+                  onChange={(e) => setGeneratedContent(e.target.value)}
+                  placeholder="You can edit your AI-generated cover letter here before approving..."
+                />
               )}
             </div>
           )}

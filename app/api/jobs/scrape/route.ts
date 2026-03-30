@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { scrapeGreenhouseBoard } from '@/lib/automation/platforms/greenhouse-scraper'
 import { scrapeIndeedBoard } from '@/lib/automation/platforms/indeed-scraper' // Import Indeed scraper
 import { scrapeLeverBoard } from '@/lib/automation/platforms/lever-scraper' // Import Lever scraper
+import { scrapeWorkdayBoard } from '@/lib/automation/platforms/workday-scraper' // Import Workday scraper
 
 export async function POST(request: Request) {
   // TODO: Implement authentication/authorization for this endpoint
@@ -36,6 +37,13 @@ export async function POST(request: Request) {
         }
         await scrapeLeverBoard(jobBoardUrl)
         message = `Successfully initiated Lever scraping for ${jobBoardUrl}`
+        break
+      case 'workday':
+        if (!jobBoardUrl.includes('myworkdayjobs.com')) { // Workday job board URL
+          return NextResponse.json({ error: 'Invalid URL for Workday platform. Should contain myworkdayjobs.com' }, { status: 400 })
+        }
+        await scrapeWorkdayBoard(jobBoardUrl)
+        message = `Successfully initiated Workday scraping for ${jobBoardUrl}`
         break
       default:
         return NextResponse.json({ error: 'Unsupported platform' }, { status: 400 })

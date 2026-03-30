@@ -1,8 +1,9 @@
 import { findCareerPage } from '@/lib/ai/find-career-page'
 import { detectATS } from '@/lib/ai/detect-ats'
 import { scrapeGreenhouseBoard } from './platforms/greenhouse-scraper'
-import { scrapeIndeedBoard } from './platforms/indeed-scraper'
 import { scrapeLeverBoard } from './platforms/lever-scraper' // Import Lever scraper
+import { scrapeWorkdayBoard } from './platforms/workday-scraper' // Import Workday scraper
+import { scrapeLinkedInJobs } from './platforms/linkedin-scraper' // Import LinkedIn scraper
 // import { scrapeGenericBoard } from './platforms/generic-scraper' // Future: generic scraper
 
 /**
@@ -49,11 +50,15 @@ export async function orchestrateJobDiscovery(companyName: string): Promise<stri
       console.log(`[Discovery Orchestrator] Triggering Lever scraper for ${companyName}.`)
       await scrapeLeverBoard(careerPageResult.career_page_url)
       return `Successfully initiated Lever scraping for ${companyName}.`
+    case 'workday': // Implement Workday scraper
+      console.log(`[Discovery Orchestrator] Triggering Workday scraper for ${companyName}.`)
+      await scrapeWorkdayBoard(careerPageResult.career_page_url)
+      return `Successfully initiated Workday scraping for ${companyName}.`
     case 'other':
     case null:
     default:
-      console.warn(`[Discovery Orchestrator] Unknown or generic ATS detected for ${companyName}. Falling back to generic scraping (if implemented).`)
-      // await scrapeGenericBoard(careerPageResult.career_page_url) // Future
-      return `Unknown or generic ATS detected for ${companyName}. Generic scraping not yet implemented.`
+      console.warn(`[Discovery Orchestrator] Unknown or generic ATS detected for ${companyName}. Falling back to LinkedIn scraping.`)
+      await scrapeLinkedInJobs(companyName)
+      return `Unknown or generic ATS detected for ${companyName}. Falling back to LinkedIn scraping.`
   }
 }

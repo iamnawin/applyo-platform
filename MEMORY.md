@@ -128,14 +128,23 @@ The following features and modifications have been implemented:
     -   Created `lib/ai/select-checkbox-radio.ts` to select the appropriate options from checkbox and radio button groups.
     -   Integrated these AI utilities into `lib/automation/platforms/playwright-apply.ts`, making the generic application script significantly more robust and adaptable to various form layouts.
 
-### 8. Advanced Job Discovery (Partial Implementation)
--   **Description:** Initiated the development of advanced job discovery features, focusing on integrating with more platforms and enhancing dynamic board discovery.
+### 8. Advanced Job Discovery (Full Implementation)
+-   **Description:** Developed advanced job discovery features, integrating multiple platforms and enabling dynamic board discovery.
 -   **Key Changes:**
     -   **Lever Platform Integration:** Implemented `lib/automation/platforms/lever-scraper.ts` to scrape job postings from Lever job boards.
-    -   Integrated Lever scraper into `lib/automation/orchestrate-discovery.ts` for dynamic ATS detection and routing.
-    -   Integrated Lever scraper into `app/api/jobs/scrape/route.ts` to allow manual triggering of Lever scraping via API.
-    -   **Indeed Integration Enhancement:** The `orchestrateJobDiscovery` function now explicitly handles Indeed ATS detection, though full automated scraping from career pages still requires further development to generate appropriate search URLs.
-    -   **Future Scope:** Remaining aspects of Advanced Job Discovery, including full integration with other major platforms (LinkedIn, Workday), robust dynamic board discovery, and scheduled scraping, are planned for future iterations.
+    -   **Workday Platform Integration:** Implemented `lib/automation/platforms/workday-scraper.ts` to dynamically scrape Workday career pages.
+    -   **LinkedIn Search Fallback:** Implemented `lib/automation/platforms/linkedin-scraper.ts` to search public LinkedIn jobs when no structured ATS is detected.
+    -   **Orchestration Logic:** Integrated all scrapers into `lib/automation/orchestrate-discovery.ts` based on AI-ATS detection.
+    -   **Continuous Discovery Scheduling:** Added `supabase/migrations/007_target_companies.sql` and `app/api/cron/discovery/route.ts` paired with `vercel.json` cron expressions to automate scraping targets regularly.
+    -   **Indeed Integration Enhancement:** Explicitly handles Indeed ATS detection to trigger targeted search flows.
+
+### 9. Advanced Matching Logic & Dynamic Content
+-   **Description:** Built a granular, preference-aware matching engine to evaluate jobs, generated structured UI feedback (pros/cons) without DB migrations, and made AI text generation seamlessly editable and dynamic.
+-   **Key Changes:**
+    -   **Preference-Aware Scoring:** `lib/ai/score-match.ts` injects explicit Candidate preferences (salary, location, industry) so AI can heavily penalize conflicting jobs.
+    -   **Detailed Pros & Cons:** Refactored AI prompt schema and application schemas to return explicit `pros` and `cons`. 
+    -   **Editable Cover Letters:** Updated `ApprovalQueueCard.tsx` to provide an interactive `<textarea>` to edit AI-generated text seamlessly before hitting Approve.
+    -   **Dynamic Answers:** Expanded `generateApplicationContent.ts` to cleanly process custom application questions and enforce structured JSON returning to prevent AI hallucination.
 
 ## Future Things (Next Steps & Vision)
 

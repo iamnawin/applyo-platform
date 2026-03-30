@@ -44,3 +44,11 @@ export interface Application {
 
 // Placeholder — replace with generated Supabase types
 export type Database = Record<string, unknown>
+
+export interface TargetCompany {
+  id: string
+  name: string
+  is_active: boolean
+  last_scraped_at: string | null
+  created_at: string
+}
