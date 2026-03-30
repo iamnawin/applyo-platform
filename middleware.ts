@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  // Optimized cookie handling for better performance
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -13,46 +14,53 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
-          cookiesToSet.forEach(({ name, value }) =>
+          cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options as Parameters<typeof supabaseResponse.cookies.set>[2])
-          )
+            supabaseResponse.cookies.set(name, value, options as any)
+          })
         },
       },
     }
   )
 
-  // Refresh session if expired
   const { pathname } = request.nextUrl
   const protectedPrefixes = ['/dashboard', '/queue', '/preferences', '/matches']
-  const authPages = ['/login', '/signup', '/']
+  const authPages = ['/login', '/signup'] // Removed root '/' to prevent timeouts on landing page
 
-  // Skip auth check for static assets and non-protected/non-auth pages to avoid middleware timeout
-  const needsAuthCheck = protectedPrefixes.some(p => pathname.startsWith(p)) || authPages.includes(pathname)
+  // 1. Skip expensive logic for static assets and non-sensitive routes
+  const isProtected = protectedPrefixes.some(p => pathname.startsWith(p))
+  const isAuthPage = authPages.includes(pathname)
 
-  if (!needsAuthCheck) {
+  if (!isProtected && !isAuthPage) {
     return supabaseResponse
   }
 
-  // Refresh session if expired and route actually needs it
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Protected routes — redirect to login if not authed
-  if (!user && protectedPrefixes.some(p => pathname.startsWith(p))) {
+  // 2. Performance Guard: Only call getUser() if an auth cookie actually exists
+  // This prevents anonymous users from triggering a slow remote call on every visit.
+  const hasAuthCookie = request.cookies.getAll().some(c => c.name.startsWith('sb-'))
+  if (!hasAuthCookie && isProtected) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Already logged in — redirect away from auth pages and root
-  if (user && authPages.includes(pathname)) {
-    const role = user.user_metadata?.role
-    const url = request.nextUrl.clone()
-    url.pathname = role === 'company' ? '/dashboard/company' : '/dashboard/candidate'
-    return NextResponse.redirect(url)
+  if (hasAuthCookie) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Protected routes — redirect to login if not authed
+    if (!user && isProtected) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+
+    // Already logged in — redirect away from auth pages
+    if (user && isAuthPage) {
+      const role = user.user_metadata?.role
+      const url = request.nextUrl.clone()
+      url.pathname = role === 'company' ? '/dashboard/company' : '/dashboard/candidate'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse
