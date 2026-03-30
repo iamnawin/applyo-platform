@@ -42,42 +42,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'File must be under 5 MB' }, { status: 400 })
   }
 
-  // Upload PDF to Supabase Storage
+  // 1. Upload PDF to Supabase Storage
   const fileName = `${user.id}/${Date.now()}.pdf`
   const { error: uploadError } = await supabase.storage
     .from('resumes')
     .upload(fileName, file, { contentType: 'application/pdf', upsert: false })
 
   if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 })
+    // High-visibility error to help users fix their Supabase Bucket setup
+    return NextResponse.json({ 
+      error: `Storage Error: ${uploadError.message}. Make sure the 'resumes' bucket exists and is writable in your Supabase dashboard.`
+    }, { status: 500 })
   }
 
-  // Extract text from PDF
+  // 2. Extract text from PDF
   const arrayBuffer = await file.arrayBuffer()
   let pdfText = ''
   try {
     const { default: pdfParse } = await import('pdf-parse')
-    const { text } = await pdfParse(Buffer.from(arrayBuffer))
-    pdfText = text
-  } catch {
+    const result = await pdfParse(Buffer.from(arrayBuffer))
+    pdfText = result.text || '[Empty PDF content]'
+  } catch (err) {
+    console.warn('[PDF] Extraction failed, continuing with placeholder:', err)
     pdfText = '[PDF text extraction failed]'
   }
 
-  // Parse + embed + store
+  // 3. Parse + embed + store (AI Phase)
   try {
     const resume = await parseAndStore(candidate.id, pdfText, fileName)
 
-    // Fire-and-forget: generate job matches for this candidate in background
+    // Fire-and-forget matching
     generateMatchesForCandidate(candidate.id).catch(() => {})
 
     return NextResponse.json(resume, { status: 201 })
   } catch (err) {
-    console.error('Resume upload failed', {
+    console.error('Resume AI phase failed', {
       candidateId: candidate.id,
-      fileName,
-      error: err instanceof Error ? err.message : 'Unknown error',
-      attempts: err instanceof AIProviderError ? err.attempts : undefined,
-      cause: err instanceof AIProviderError && err.cause instanceof Error ? err.cause.message : undefined,
+      error: err instanceof Error ? err.message : 'Unknown AI error',
     })
 
     if (err instanceof AIProviderError) {
@@ -85,13 +86,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           ...pendingResume,
-          notice: 'Resume uploaded. AI parsing is pending and will need to be retried later.',
+          notice: `Resume uploaded, but AI parsing is temporarily unavailable: ${err.message}. It will be retried later.`,
         },
         { status: 201 },
       )
     }
 
-    const message = getAIErrorMessage(err) ?? (err instanceof Error ? err.message : 'Parse failed')
+    const message = getAIErrorMessage(err) ?? (err instanceof Error ? err.message : 'Processing failed')
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
