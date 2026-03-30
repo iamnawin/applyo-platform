@@ -64,13 +64,20 @@ function getProviderApiKey(provider: AnyProvider): string | undefined {
 }
 
 function summarizeError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message
+  if (error instanceof Error) return error.message
+  return String(error)
+}
+
+/**
+ * Robustly cleans AI-generated text that might be wrapped in Markdown code blocks.
+ */
+function cleanAiJsonText(text: string): string {
+  // 1. Remove Markdown code blocks if they exist: ```json ... ``` or ``` ... ```
+  let cleaned = text.trim()
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '')
   }
-  if (typeof error === 'string') {
-    return error
-  }
-  return 'Unknown error'
+  return cleaned.trim()
 }
 
 function getErrorStatus(error: unknown): number | undefined {
@@ -223,8 +230,21 @@ async function generateJsonWithTextProvider(
       model: 'gemini-2.0-flash',
       generationConfig: { responseMimeType: 'application/json' },
     })
+
     const result = await model.generateContent(`${systemPrompt}\n\n${userContent}`)
-    return JSON.parse(result.response.text())
+    const rawText = result.response.text()
+    const cleanedText = cleanAiJsonText(rawText)
+
+    if (!cleanedText) {
+      throw new AIProviderError('Gemini returned an empty response. This may be due to a safety filter.', 'invalid_response')
+    }
+
+    try {
+      return JSON.parse(cleanedText)
+    } catch (err) {
+      console.error('[AI] Gemini JSON parse failed', { rawText: rawText.slice(0, 500) })
+      throw new AIProviderError(`Failed to parse AI response as JSON: ${err instanceof Error ? err.message : 'Invalid format'}`, 'invalid_response')
+    }
   }
 
   const OpenAI = (await import('openai')).default
