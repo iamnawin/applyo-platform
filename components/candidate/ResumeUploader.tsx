@@ -63,7 +63,7 @@ export function ResumeUploader({ onUploaded }: Props) {
       // 3. Success!
       setStatus('success')
       setSuccessMsg(
-        data?.notice || 'Resume uploaded successfully!'
+        data?.notice || 'Resume uploaded successfully! AI parsing is in progress.'
       )
       
       if (data && onUploaded) {
@@ -73,11 +73,11 @@ export function ResumeUploader({ onUploaded }: Props) {
       setStatus('error')
       const message = err instanceof Error ? err.message : 'Upload failed'
       
-      // Handle the "Unexpected end of JSON input" error / timeout specifically
+      // If we got "Unexpected end of JSON input" locally, it's almost always a server timeout.
       const isTimeout = message.toLowerCase().includes('json') || message.toLowerCase().includes('end of input')
       
       const normalizedMessage = isTimeout 
-        ? 'The server is busy parsing your resume. It will appear in your dashboard in a few seconds!'
+        ? 'The server is busy parsing your resume. It should appear in your dashboard in a few seconds!'
         : (message.includes('quota') || message.includes('429') ? GENERIC_UPLOAD_ERROR : message)
       
       setErrorMsg(normalizedMessage)
