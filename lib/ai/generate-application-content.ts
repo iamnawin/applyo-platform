@@ -1,5 +1,6 @@
 import { runStructuredTextTask } from '@/lib/ai/providers'
 import type { ParsedResume, NormalizedJob } from '@/lib/types'
+import { z } from 'zod'
 
 /**
  * Generates dynamic application content (e.g., cover letter, answers to questions)
@@ -45,13 +46,13 @@ export async function generateApplicationContent(
       Highlight how the candidate's skills and experience align with the job requirements.
       Address the letter to the hiring manager (if no name is available, use "Hiring Manager").
       Maintain a professional and enthusiastic tone.
-      Output only the cover letter text.`
+      Return JSON: { "content": "The actual cover letter text goes here" }`
     userContent = `Candidate's Resume Summary:\n${resumeSummary}\n\nJob Description Summary:\n${jobSummary}`
   } else if (contentType === 'answer_question' && promptContext) {
     systemPrompt = `You are an AI assistant specialized in answering job application questions.
       Answer the following question based on the candidate's resume and the job description.
       Keep the answer concise and relevant.
-      Output only the answer text.`
+      Return JSON: { "content": "The actual answer text goes here" }`
     userContent = `Candidate's Resume Summary:\n${resumeSummary}\n\nJob Description Summary:\n${jobSummary}\n\nQuestion: ${promptContext}`
   } else {
     throw new Error('Invalid content type or missing prompt context for question answering.')
@@ -62,9 +63,9 @@ export async function generateApplicationContent(
       taskName: `generate ${contentType}`,
       systemPrompt: systemPrompt,
       userContent: userContent,
-      schema: z.string(), // Expecting a plain string output
+      schema: z.object({ content: z.string() }),
     })
-    return result
+    return result.content
   } catch (error) {
     console.error(`Error generating ${contentType}:`, error)
     throw new Error(`Failed to generate ${contentType}.`)

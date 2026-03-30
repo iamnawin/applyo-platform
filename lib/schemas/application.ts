@@ -3,8 +3,8 @@ import { z } from 'zod'
 export const matchScoreSchema = z.object({
   score: z.number().min(0).max(100),
   reasons: z.array(z.string()).default([]),
-  missingSkills: z.array(z.string()).default([]),
-  strongPoints: z.array(z.string()).default([]),
+  pros: z.array(z.string()).default([]),
+  cons: z.array(z.string()).default([]),
 })
 
 export const approvalActionSchema = z.object({
