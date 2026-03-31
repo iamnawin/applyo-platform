@@ -199,7 +199,6 @@ async function generateGeminiEmbedding(text: string): Promise<number[]> {
           parts: [{ text }],
         },
         taskType: 'SEMANTIC_SIMILARITY',
-        outputDimensionality: GEMINI_EMBEDDING_DIMENSIONS,
       }),
     },
   )
@@ -217,7 +216,14 @@ async function generateGeminiEmbedding(text: string): Promise<number[]> {
     throw new AIProviderError('Gemini embedding response was missing vector values.', 'invalid_response')
   }
 
-  return embedding
+  // Gemini text-embedding-004 outputs 768 dimensions maximum.
+  // We must pad it with zeros to match the 1536-dimension Supabase vector column.
+  const paddedEmbedding = new Array(GEMINI_EMBEDDING_DIMENSIONS).fill(0)
+  for (let i = 0; i < embedding.length && i < GEMINI_EMBEDDING_DIMENSIONS; i++) {
+    paddedEmbedding[i] = embedding[i]
+  }
+
+  return paddedEmbedding
 }
 
 async function generateJsonWithTextProvider(
