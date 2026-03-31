@@ -15,7 +15,7 @@ const GENERIC_UPLOAD_ERROR = 'AI parsing is temporarily unavailable. Please try 
 export function ResumeUploader({ onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
-  const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'upload_step' | 'parse_step' | 'save_step' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [fileName, setFileName] = useState('')
@@ -33,53 +33,67 @@ export function ResumeUploader({ onUploaded }: Props) {
     }
 
     setFileName(file.name)
-    setStatus('uploading')
     setErrorMsg('')
     setSuccessMsg('')
 
-    const form = new FormData()
-    form.append('file', file)
-
     try {
-      const res = await fetch('/api/resumes', { method: 'POST', body: form })
-      
-      // 1. Get raw text to handle empty/malformed responses safely
-      const rawText = await res.text()
-      let data: any = null
-      
-      if (rawText) {
-        try {
-          data = JSON.parse(rawText)
-        } catch (parseErr) {
-          console.error('[Upload] Malformed JSON:', rawText.slice(0, 500))
-        }
-      }
+      // ----------------------------------------------------------------------
+      // STEP 1: Upload to Storage & Extract Raw Text (Fast)
+      // ----------------------------------------------------------------------
+      setStatus('upload_step')
+      const form = new FormData()
+      form.append('file', file)
 
-      // 2. Check for HTTP errors
-      if (!res.ok) {
-        throw new Error(data?.error || `Upload failed (Status ${res.status})`)
-      }
+      const res1 = await fetch('/api/resumes/step-1-upload', { method: 'POST', body: form })
+      const data1 = await res1.json()
 
-      // 3. Success!
+      if (!res1.ok) throw new Error(data1?.error || `Upload failed (Status ${res1.status})`)
+      
+      const { text: rawPdfText, fileName: storageFileName } = data1
+
+      // ----------------------------------------------------------------------
+      // STEP 2: Make Gemini AI extract the JSON structure (Moderate)
+      // ----------------------------------------------------------------------
+      setStatus('parse_step')
+      const res2 = await fetch('/api/resumes/step-2-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: rawPdfText })
+      })
+      const data2 = await res2.json()
+
+      if (!res2.ok) throw new Error(data2?.error || `AI parsing failed (Status ${res2.status})`)
+      
+      const { parsedData } = data2
+
+      // ----------------------------------------------------------------------
+      // STEP 3: Create Vector Embeddings and Save to Database (Fast)
+      // ----------------------------------------------------------------------
+      setStatus('save_step')
+      const res3 = await fetch('/api/resumes/step-3-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parsedData, fileName: storageFileName })
+      })
+      const data3 = await res3.json()
+
+      if (!res3.ok) throw new Error(data3?.error || `Database save failed (Status ${res3.status})`)
+
+      // ----------------------------------------------------------------------
+      // DONE!
+      // ----------------------------------------------------------------------
       setStatus('success')
-      setSuccessMsg(
-        data?.notice || 'Resume uploaded successfully! AI parsing is in progress.'
-      )
+      setSuccessMsg('Resume uploaded and parsed successfully!')
       
-      if (data && onUploaded) {
-        onUploaded(data as Resume)
+      if (data3.resume && onUploaded) {
+        onUploaded(data3.resume as Resume)
       }
+
     } catch (err) {
+      console.error('Sequence Failed:', err)
       setStatus('error')
-      const message = err instanceof Error ? err.message : 'Upload failed'
-      
-      // If we got "Unexpected end of JSON input" locally, it's almost always a server timeout.
-      const isTimeout = message.toLowerCase().includes('json') || message.toLowerCase().includes('end of input')
-      
-      const normalizedMessage = isTimeout 
-        ? 'The server is busy parsing your resume. It should appear in your dashboard in a few seconds!'
-        : (message.includes('quota') || message.includes('429') ? GENERIC_UPLOAD_ERROR : message)
-      
+      const message = err instanceof Error ? err.message : 'Processing failed'
+      const normalizedMessage = message.includes('quota') || message.includes('429') ? GENERIC_UPLOAD_ERROR : message
       setErrorMsg(normalizedMessage)
     }
   }
@@ -96,6 +110,13 @@ export function ResumeUploader({ onUploaded }: Props) {
     if (file) upload(file)
   }
 
+  const isWorking = status === 'upload_step' || status === 'parse_step' || status === 'save_step'
+
+  let workingMessage = 'Processing...'
+  if (status === 'upload_step') workingMessage = 'Uploading and reading PDF...'
+  if (status === 'parse_step') workingMessage = 'AI is extracting your skills...'
+  if (status === 'save_step') workingMessage = 'Saving to database...'
+
   return (
     <Card>
       <CardContent className="p-6">
@@ -103,18 +124,18 @@ export function ResumeUploader({ onUploaded }: Props) {
           onDragOver={e => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
-          onClick={() => status !== 'uploading' && inputRef.current?.click()}
+          onClick={() => !isWorking && status !== 'success' && inputRef.current?.click()}
           className={`flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-10 cursor-pointer transition-colors
             ${dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30'}
-            ${status === 'success' ? 'border-green-500 bg-green-50' : ''}
+            ${status === 'success' ? 'border-green-500 bg-green-50 cursor-default' : ''}
             ${status === 'error' ? 'border-destructive bg-destructive/5' : ''}
           `}
         >
-          {status === 'uploading' && (
+          {isWorking && (
             <>
               <Loader2 className="h-10 w-10 text-primary animate-spin" />
-              <p className="text-sm font-medium">Parsing {fileName}…</p>
-              <p className="text-xs text-muted-foreground">This may take a few seconds</p>
+              <p className="text-sm font-medium">{workingMessage}</p>
+              <p className="text-xs text-muted-foreground">{fileName}</p>
             </>
           )}
 
@@ -133,11 +154,8 @@ export function ResumeUploader({ onUploaded }: Props) {
             <>
               <AlertCircle className="h-10 w-10 text-destructive" />
               <div className="text-center">
-                <p className="text-sm font-medium text-destructive">{errorMsg}</p>
-                {/* Special case: if it was a timeout, let them know it's actually fine */}
-                {errorMsg.includes('dashboard') && (
-                  <p className="text-xs text-muted-foreground mt-1">Try refreshing the page in 1 minute.</p>
-                )}
+                <p className="text-sm font-medium text-destructive">Upload Failed</p>
+                <p className="text-xs text-muted-foreground mt-1">{errorMsg}</p>
               </div>
               <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); setStatus('idle') }}>
                 Try again
