@@ -6,6 +6,7 @@ import { generateMatchesForCandidate } from '@/lib/services/match-service'
 
 // STEP 3: VECTORS & SAVING
 // Embedding is optional — if it fails, the resume is always saved and visible.
+// processing_status is NOT included in the insert to avoid schema issues.
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -20,69 +21,50 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Candidate profile not found' }, { status: 404 })
   }
 
+  let parsedData: any, fileName: string
   try {
-    const { parsedData, fileName } = await req.json()
+    const body = await req.json()
+    parsedData = body.parsedData
+    fileName = body.fileName
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
 
-    if (!parsedData || !fileName) {
-      return NextResponse.json({ error: 'Missing parsed data or file name' }, { status: 400 })
-    }
+  if (!parsedData || !fileName) {
+    return NextResponse.json({ error: 'Missing parsed data or file name' }, { status: 400 })
+  }
 
-    // Generate the vector embedding — gracefully degrade if it fails
-    let embedding: number[] | null = null
-    try {
-      const embedInput = JSON.stringify(parsedData.skills) + ' ' + (parsedData.summary || '')
-      embedding = await embedText(embedInput)
-      console.info('[Step3] Embedding generated, dimensions:', embedding?.length)
-    } catch (embedErr: any) {
-      console.warn('[Step3] Embedding failed (saving without it):', embedErr?.message)
-    }
+  // Try to generate embedding — silently skip if it fails
+  let embedding: number[] | null = null
+  try {
+    const embedInput = (parsedData.skills ? JSON.stringify(parsedData.skills) : '') + ' ' + (parsedData.summary || '')
+    embedding = await embedText(embedInput.trim())
+    console.info('[Step3] Embedding OK, dims:', embedding?.length)
+  } catch (e: any) {
+    console.warn('[Step3] Embedding skipped:', e?.message)
+  }
 
-    // Build insert payload — omit processing_status if not supported
-    const insertPayload: Record<string, any> = {
+  // Insert resume — no processing_status to avoid schema issues
+  const { data: finalResume, error: dbError } = await supabase
+    .from('resumes')
+    .insert({
       candidate_id: candidate.id,
       storage_path: fileName,
       parsed_data: parsedData,
       embedding,
-    }
+    })
+    .select()
+    .single()
 
-    // Try with processing_status first, fall back without it if the column doesn't exist
-    let finalResume: any = null
-    const { data: withStatus, error: errWithStatus } = await supabase
-      .from('resumes')
-      .insert({ ...insertPayload, processing_status: 'ready' })
-      .select()
-      .single()
-
-    if (errWithStatus) {
-      const isSchemaError = errWithStatus.message?.includes('processing_status')
-      if (isSchemaError) {
-        // The column doesn't exist — save without it
-        console.warn('[Step3] processing_status column missing, saving without it')
-        const { data: withoutStatus, error: errWithout } = await supabase
-          .from('resumes')
-          .insert(insertPayload)
-          .select()
-          .single()
-        if (errWithout) throw new Error(errWithout.message)
-        finalResume = withoutStatus
-      } else {
-        throw new Error(errWithStatus.message)
-      }
-    } else {
-      finalResume = withStatus
-    }
-
-    // Trigger candidate-job matching (only if embedding was generated)
-    if (embedding) {
-      generateMatchesForCandidate(candidate.id).catch(() => {})
-    }
-
-    return NextResponse.json({ 
-      resume: finalResume,
-      embeddingStatus: embedding ? 'ok' : 'skipped'
-    }, { status: 201 })
-  } catch (err: any) {
-    console.error('[Embed & Save Step] Error:', err)
-    return NextResponse.json({ error: err.message || 'Database saving failed' }, { status: 500 })
+  if (dbError) {
+    console.error('[Step3] DB insert failed:', dbError)
+    return NextResponse.json({ error: dbError.message }, { status: 500 })
   }
+
+  // Trigger job matching in background (only if embedding exists)
+  if (embedding) {
+    generateMatchesForCandidate(candidate.id).catch(() => {})
+  }
+
+  return NextResponse.json({ resume: finalResume }, { status: 201 })
 }

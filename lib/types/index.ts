@@ -18,7 +18,7 @@ export interface Resume {
   storage_path: string
   parsed_data: ParsedResume
   embedding: number[] | null
-  processing_status: ResumeProcessingStatus
+  processing_status?: ResumeProcessingStatus
   created_at: string
 }
 

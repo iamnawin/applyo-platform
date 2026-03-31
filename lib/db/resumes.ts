@@ -14,7 +14,10 @@ export async function getResumesByCandidateId(candidateId: string): Promise<Resu
 
 export async function createResume(resume: Omit<Resume, 'id' | 'created_at'>): Promise<Resume> {
   const db = createServerClient()
-  const { data, error } = await db.from('resumes').insert(resume).select().single()
+  // Omit processing_status from insert — the column may not exist yet in some deployments.
+  // If the column exists, it will default to 'ready' automatically.
+  const { processing_status, ...safePayload } = resume as any
+  const { data, error } = await db.from('resumes').insert(safePayload).select().single()
   if (error) throw error
   return data as Resume
 }
