@@ -7,6 +7,7 @@ import { createServerClient } from '@/lib/db/client'
 import { applyToJob } from './platforms/playwright-apply' // Generic fallback
 import { applyToGreenhouse } from './platforms/greenhouse-apply' // Greenhouse driver
 import { applyToIndeed } from './platforms/indeed-apply' // Indeed driver
+import { applyToNaukri } from './platforms/naukri-apply' // Naukri driver
 
 /**
  * Determines the job platform from the URL.
@@ -14,16 +15,15 @@ import { applyToIndeed } from './platforms/indeed-apply' // Indeed driver
  * @returns A string identifying the platform (e.g., 'greenhouse', 'indeed', 'lever', 'generic').
  */
 function detectPlatform(jobUrl: string): string {
+  if (jobUrl.includes('naukri.com')) {
+    return 'naukri'
+  }
   if (jobUrl.includes('boards.greenhouse.io')) {
     return 'greenhouse'
   }
   if (jobUrl.includes('indeed.com/viewjob')) {
     return 'indeed'
   }
-  // Add more platform detections here
-  // if (jobUrl.includes('jobs.lever.co')) {
-  //   return 'lever'
-  // }
   return 'generic'
 }
 
@@ -92,6 +92,9 @@ export async function routeApply(applicationId: string, generatedCoverLetter?: s
     }
 
     switch (platform) {
+      case 'naukri':
+        await applyToNaukri(applyParams)
+        break
       case 'greenhouse':
         await applyToGreenhouse(applyParams)
         break
