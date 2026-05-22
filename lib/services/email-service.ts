@@ -1,12 +1,15 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM = process.env.EMAIL_FROM ?? 'Aplio <notifications@aplio.app>'
+
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 export async function sendMatchNotification(email: string, name: string, matchCount: number) {
   if (!process.env.RESEND_API_KEY) return
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to: email,
     subject: `${matchCount} new job match${matchCount > 1 ? 'es' : ''} found!`,
@@ -22,7 +25,7 @@ export async function sendMatchNotification(email: string, name: string, matchCo
 export async function sendApplicationStatusEmail(email: string, name: string, jobTitle: string, status: string) {
   if (!process.env.RESEND_API_KEY) return
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to: email,
     subject: `Application update: ${jobTitle}`,
