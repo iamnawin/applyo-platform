@@ -30,13 +30,23 @@ function detectPlatform(jobUrl: string): string {
 /**
  * Routes an application to the correct automation platform handler.
  * This function orchestrates the entire automation process for a single application.
+ * If no browser is available (no BROWSER_WS_ENDPOINT), marks as manual with a direct link.
  */
-export async function routeApply(applicationId: string, generatedCoverLetter?: string): Promise<void> { // Added generatedCoverLetter
+export async function routeApply(applicationId: string, generatedCoverLetter?: string): Promise<void> {
   const log = (message: string) => logToApplication(applicationId, message)
   const supabase = createServerClient()
 
   try {
     await log('Automation process started.')
+
+    // Check if browser automation is available
+    const hasBrowser = Boolean(process.env.BROWSER_WS_ENDPOINT)
+    if (!hasBrowser) {
+      await log('No remote browser configured (BROWSER_WS_ENDPOINT not set). Marking as manual apply.')
+      await updateApplicationAutomationStatus(applicationId, 'manual')
+      return
+    }
+
     await updateApplicationAutomationStatus(applicationId, 'in_progress')
 
     const application = await getApplicationById(applicationId)

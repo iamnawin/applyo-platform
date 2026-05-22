@@ -1,18 +1,18 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { z } from 'zod'
 
-export type TextProvider = 'gemini' | 'openai' | 'groq'
+export type TextProvider = 'freellmapi' | 'gemini' | 'openai' | 'groq'
 export type EmbeddingProvider = 'gemini' | 'openai'
 
 type AnyProvider = TextProvider | EmbeddingProvider
 type ProviderErrorCode = 'temporary_unavailable' | 'configuration_error' | 'invalid_response'
 
-const DEFAULT_TEXT_PROVIDER_ORDER: TextProvider[] = ['gemini', 'openai', 'groq']
+const DEFAULT_TEXT_PROVIDER_ORDER: TextProvider[] = ['freellmapi', 'gemini', 'openai', 'groq']
 const DEFAULT_EMBEDDING_PROVIDER_ORDER: EmbeddingProvider[] = ['gemini']
 const SUPPORTED_TEXT_PROVIDERS = new Set<TextProvider>(DEFAULT_TEXT_PROVIDER_ORDER)
 const SUPPORTED_EMBEDDING_PROVIDERS = new Set<EmbeddingProvider>(['gemini', 'openai'])
 
-export const GEMINI_EMBEDDING_DIMENSIONS = 1536
+export const GEMINI_EMBEDDING_DIMENSIONS = 768
 const OPENAI_EMBEDDING_DIMENSIONS = 1536
 
 export class AIProviderError extends Error {
@@ -54,6 +54,8 @@ function parseProviderOrder<T extends string>(
 
 function getProviderApiKey(provider: AnyProvider): string | undefined {
   switch (provider) {
+    case 'freellmapi':
+      return process.env.AI_API_KEY
     case 'gemini':
       return process.env.GOOGLE_AI_API_KEY
     case 'openai':
@@ -132,14 +134,18 @@ function normalizeFinalProviderError(
   return new AIProviderError(message, code, { attempts, cause })
 }
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 export async function runWithProviderFallback<T, TProvider extends AnyProvider>({
   providers,
   taskName,
   run,
+  maxRetries = 3,
 }: {
   providers: TProvider[]
   taskName: string
   run: (provider: TProvider) => Promise<T>
+  maxRetries?: number
 }): Promise<T> {
   const attempts: ProviderAttempt[] = []
   const configuredProviders = providers.filter(provider => Boolean(getProviderApiKey(provider)))
@@ -153,18 +159,34 @@ export async function runWithProviderFallback<T, TProvider extends AnyProvider>(
   }
 
   for (const provider of configuredProviders) {
-    try {
-      return await run(provider)
-    } catch (error) {
-      attempts.push({ provider, message: summarizeError(error) })
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await run(provider)
+      } catch (error) {
+        const isRetryable = isRetryableProviderError(error)
+        const isLastAttempt = attempt === maxRetries
 
-      if (!isRetryableProviderError(error)) {
-        throw normalizeFinalProviderError(
-          `AI provider failed while running ${taskName}.`,
-          attempts,
-          error instanceof AIProviderError ? error.code : 'invalid_response',
-          error,
-        )
+        if (isRetryable && !isLastAttempt) {
+          // Exponential backoff: 2s, 4s, 8s
+          const backoffMs = Math.pow(2, attempt + 1) * 1000
+          console.warn(`[AI] ${provider} rate-limited for ${taskName}, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`)
+          await sleep(backoffMs)
+          continue
+        }
+
+        attempts.push({ provider, message: summarizeError(error) })
+
+        if (!isRetryable) {
+          throw normalizeFinalProviderError(
+            `AI provider failed while running ${taskName}.`,
+            attempts,
+            error instanceof AIProviderError ? error.code : 'invalid_response',
+            error,
+          )
+        }
+
+        // Exhausted retries for this provider — try next provider
+        break
       }
     }
   }
@@ -175,6 +197,7 @@ export async function runWithProviderFallback<T, TProvider extends AnyProvider>(
     'temporary_unavailable',
   )
 }
+
 
 function createGeminiClient() {
   return new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
@@ -216,14 +239,8 @@ async function generateGeminiEmbedding(text: string): Promise<number[]> {
     throw new AIProviderError('Gemini embedding response was missing vector values.', 'invalid_response')
   }
 
-  // Gemini text-embedding-004 outputs 768 dimensions maximum.
-  // We must pad it with zeros to match the 1536-dimension Supabase vector column.
-  const paddedEmbedding = new Array(GEMINI_EMBEDDING_DIMENSIONS).fill(0)
-  for (let i = 0; i < embedding.length && i < GEMINI_EMBEDDING_DIMENSIONS; i++) {
-    paddedEmbedding[i] = embedding[i]
-  }
-
-  return paddedEmbedding
+  // Gemini text-embedding-004 outputs 768 dimensions — matches our DB vector(768) column.
+  return embedding
 }
 
 async function generateJsonWithTextProvider(
@@ -231,6 +248,11 @@ async function generateJsonWithTextProvider(
   systemPrompt: string,
   userContent: string,
 ): Promise<unknown> {
+  if (provider === 'freellmapi') {
+    const { jsonCompletion } = await import('./freellmapi-client')
+    return jsonCompletion(systemPrompt, userContent)
+  }
+
   if (provider === 'gemini') {
     const model = createGeminiClient().getGenerativeModel({
       model: 'gemini-2.0-flash',

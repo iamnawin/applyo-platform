@@ -38,7 +38,7 @@ export function ResumeUploader({ onUploaded }: Props) {
 
     try {
       // ----------------------------------------------------------------------
-      // STEP 1: Upload to Storage & Extract Raw Text (Fast)
+      // STEP 1: Upload to Storage & Extract Raw Text (Fast ~1-2s)
       // ----------------------------------------------------------------------
       setStatus('upload_step')
       const form = new FormData()
@@ -52,22 +52,25 @@ export function ResumeUploader({ onUploaded }: Props) {
       const { text: rawPdfText, fileName: storageFileName } = data1
 
       // ----------------------------------------------------------------------
-      // STEP 2: Make Gemini AI extract the JSON structure (Moderate)
+      // STEP 2: AI extracts structured JSON from the raw PDF text
+      // The AI provider layer has automatic retry-with-backoff for 429 rate limits.
       // ----------------------------------------------------------------------
       setStatus('parse_step')
+
       const res2 = await fetch('/api/resumes/step-2-parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: rawPdfText })
+        body: JSON.stringify({ text: rawPdfText }),
       })
       const data2 = await res2.json()
 
       if (!res2.ok) throw new Error(data2?.error || `AI parsing failed (Status ${res2.status})`)
-      
+
       const { parsedData } = data2
 
+
       // ----------------------------------------------------------------------
-      // STEP 3: Create Vector Embeddings and Save to Database (Fast)
+      // STEP 3: Create Vector Embeddings and Save to Database (Fast ~1s)
       // ----------------------------------------------------------------------
       setStatus('save_step')
       const res3 = await fetch('/api/resumes/step-3-save', {
@@ -98,6 +101,7 @@ export function ResumeUploader({ onUploaded }: Props) {
     }
   }
 
+
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     setDragging(false)
@@ -114,7 +118,7 @@ export function ResumeUploader({ onUploaded }: Props) {
 
   let workingMessage = 'Processing...'
   if (status === 'upload_step') workingMessage = 'Uploading and reading PDF...'
-  if (status === 'parse_step') workingMessage = 'AI is extracting your skills...'
+  if (status === 'parse_step') workingMessage = 'AI is extracting your resume data...'
   if (status === 'save_step') workingMessage = 'Saving to database...'
 
   return (

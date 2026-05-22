@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     parsedData = body.parsedData
     fileName = body.fileName
+    console.log('[Step3] Received parsedData keys:', Object.keys(parsedData ?? {}), 'fileName:', fileName)
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Insert resume — no processing_status to avoid schema issues
+  console.log('[Step3] Inserting resume into DB...')
   const { data: finalResume, error: dbError } = await supabase
     .from('resumes')
     .insert({
@@ -57,9 +59,10 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (dbError) {
-    console.error('[Step3] DB insert failed:', dbError)
+    console.error('[Step3] DB insert failed:', dbError.message, dbError.details)
     return NextResponse.json({ error: dbError.message }, { status: 500 })
   }
+  console.log('[Step3] DB insert OK, resume id:', finalResume?.id)
 
   // Trigger job matching in background (only if embedding exists)
   if (embedding) {
