@@ -172,7 +172,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
       `}
       >
         <div className="flex items-center justify-between p-6 border-b">
-          <Link href="/" className="text-xl font-bold tracking-tight">Aplio</Link>
+          <Link href="/" className="text-xl font-bold tracking-tight">Applyo</Link>
           <button className="md:hidden" onClick={() => setMobileOpen(false)}>
             <X className="h-5 w-5" />
           </button>
@@ -226,7 +226,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
           <button onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-semibold">Aplio</span>
+          <span className="font-semibold">Applyo</span>
         </div>
 
         <div className="max-w-3xl mx-auto p-6 space-y-8">
@@ -234,7 +234,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">Welcome back{user.name ? `, ${user.name.split(' ')[0]}` : ''}!</h1>
-                <p className="text-muted-foreground mt-1">Here&apos;s your Aplio snapshot</p>
+                <p className="text-muted-foreground mt-1">Here&apos;s your Applyo snapshot</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -247,7 +247,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <StatCard
                   label="Preferences"
                   value={preferences ? 'Set' : 'Not set'}
-                  sub={preferences ? 'Aplio is finding jobs' : 'Set your target roles'}
+                  sub={preferences ? 'Applyo is finding jobs' : 'Set your target roles'}
                   accent={!!preferences}
                 />
                 <StatCard
@@ -262,7 +262,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <div className="space-y-3">
                   <div>
                     <p className="font-semibold text-base">Start by uploading your resume</p>
-                    <p className="text-muted-foreground text-sm mt-0.5">Aplio will parse it and start finding matching jobs for you automatically</p>
+                    <p className="text-muted-foreground text-sm mt-0.5">Applyo will parse it and start finding matching jobs for you automatically</p>
                   </div>
                   <ResumeUploader onUploaded={r => {
                     setResumes([r])
@@ -357,7 +357,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">Upload Resume</h1>
-                <p className="text-muted-foreground mt-1">Upload your latest resume. If AI is unavailable, Aplio will store it and parse it later.</p>
+                <p className="text-muted-foreground mt-1">Upload your latest resume. If AI is unavailable, Applyo will store it and parse it later.</p>
               </div>
               <ResumeUploader onUploaded={r => {
                 setResumes(prev => [r, ...prev])
@@ -400,7 +400,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">Edit Resume Profile</h1>
-                <p className="text-muted-foreground mt-1">Review and refine the information Aplio uses for matching and applications.</p>
+                <p className="text-muted-foreground mt-1">Review and refine the information Applyo uses for matching and applications.</p>
               </div>
               <ResumeProfileForm
                 candidateId={candidate.id}
@@ -414,7 +414,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">Preferences</h1>
-                <p className="text-muted-foreground mt-1">Tell Aplio what jobs to find and apply to on your behalf</p>
+                <p className="text-muted-foreground mt-1">Tell Applyo what jobs to find and apply to on your behalf</p>
               </div>
               <PreferenceWizard initial={preferences ?? undefined} onSaved={setPreferences} />
             </div>
@@ -424,7 +424,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">Approval Queue</h1>
-                <p className="text-muted-foreground mt-1">Review AI-matched jobs before Aplio applies. You must approve each one.</p>
+                <p className="text-muted-foreground mt-1">Review AI-matched jobs before Applyo applies. You must approve each one.</p>
               </div>
               {queueLoading && (
                 <div className="text-center py-12 text-muted-foreground text-sm">Loading matches...</div>
@@ -433,7 +433,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
                   <ListChecks className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No jobs pending approval</p>
-                  <p className="text-sm mt-1">Upload your resume and Aplio will find matching jobs for you.</p>
+                  <p className="text-sm mt-1">Upload your resume and Applyo will find matching jobs for you.</p>
                 </div>
               )}
               {!queueLoading && queue.length > 0 && (
@@ -450,7 +450,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">Applications</h1>
-                <p className="text-muted-foreground mt-1">Track every job Aplio has applied to on your behalf</p>
+                <p className="text-muted-foreground mt-1">Track every job Applyo has applied to on your behalf</p>
               </div>
               {appsLoading && (
                 <div className="text-center py-12 text-muted-foreground text-sm">Loading applications...</div>
@@ -459,7 +459,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
                   <History className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No applications yet</p>
-                  <p className="text-sm mt-1">Approve jobs in the queue and Aplio will apply for you.</p>
+                  <p className="text-sm mt-1">Approve jobs in the queue and Applyo will apply for you.</p>
                 </div>
               )}
               {!appsLoading && applications.length > 0 && (

@@ -69,7 +69,7 @@ export default function SignupPage() {
       <Card className="w-full max-w-sm border-white/10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
-          <CardDescription>Start applying smarter with Aplio</CardDescription>
+          <CardDescription>Start applying smarter with Applyo</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignup} className="space-y-4">

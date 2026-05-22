@@ -104,7 +104,7 @@ export function PreferenceForm({ initial, onSaved }: Props) {
     <Card>
       <CardHeader>
         <CardTitle>Job Preferences</CardTitle>
-        <CardDescription>Tell Aplio what jobs to find for you</CardDescription>
+        <CardDescription>Tell Applyo what jobs to find for you</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSave} className="space-y-6">
