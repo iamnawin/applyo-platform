@@ -1,8 +1,8 @@
-# CLAUDE.md — Aplio Project Context
+# CLAUDE.md
 
-> This file is read by Claude Code at the start of every session.
-> It is the single source of truth for how to work in this codebase.
-> Do NOT delete or modify without team approval.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+> Single source of truth for how to work in this codebase. Do NOT delete or modify without team approval.
 
 ---
 
@@ -40,6 +40,16 @@ Phase 1 scope:
 
 ---
 
+## Commands
+
+```bash
+npm run dev          # Start Next.js dev server
+npm run build        # Production build
+npm run type-check   # TypeScript check (no emit)
+npm run lint         # ESLint
+npm run test:ai      # Run AI provider tests (node --test, sequential)
+```
+
 ## Tech Stack
 
 | Layer | Tool | Notes |
@@ -48,143 +58,45 @@ Phase 1 scope:
 | Styling | TailwindCSS + shadcn/ui | Mobile-first |
 | Backend | Supabase Edge Functions | Deno runtime |
 | Database | Supabase PostgreSQL | pgvector extension enabled |
-| Vector Search | pgvector | ANN search on embeddings |
-| AI Parsing | OpenAI gpt-4o-mini | Resume + JD parsing |
-| Embeddings | text-embedding-3-small | 1536 dimensions |
-| Automation | Playwright (Node.js) | Separate `automation/` service |
-| Orchestration | n8n (self-hosted) | Job fetch + match trigger workflows |
+| AI Text | Gemini 2.0 Flash (primary) → OpenAI gpt-4o-mini → Groq llama-3.3-70b | Priority order |
+| AI Embeddings | Gemini text-embedding-004 (768-dim padded to 1536) | Stored in pgvector column |
+| Automation | Playwright (Node.js) | `playwright/` directory |
 | Auth | Supabase Auth | Email + Google OAuth |
-| Storage | Supabase Storage | Resume PDFs |
-| Email | Resend | Transactional only |
+| Storage | Supabase Storage | Resume PDFs in `resumes` bucket |
 | Hosting | Vercel | Frontend only |
 
 ---
 
-## Project Structure
+## Architecture
 
-```
-aplio/
-├── CLAUDE.md                    ← YOU ARE HERE
-├── README.md
-├── .env.local                   ← Never commit. See .env.local.example
-├── .env.local.example
-├── next.config.mjs
-├── tailwind.config.ts
-├── tsconfig.json
-├── middleware.ts                ← Supabase SSR session refresh + route protection
-├── package.json
-│
-├── .claude/
-│   └── skills/                  ← Read before touching each module
-│       ├── resume-parser.md     ← AI parse pipeline
-│       ├── playwright-apply.md  ← Auto-apply bot
-│       ├── ai-matching.md       ← Scoring engine
-│       ├── supabase-patterns.md ← DB query patterns and RLS rules
-│       └── component-patterns.md← UI component conventions
-│
-├── docs/
-│   ├── Aplio_BRD_v1.0.docx     ← Business requirements
-│   ├── MEMORY.md                ← Manual session changelog
-│   └── flows/
-│       ├── complete user flow.excalidraw
-│       └── Full AI Technical Architecture.excalidraw
-│
-├── app/                         ← Next.js App Router (no src/ prefix)
-│   ├── layout.tsx
-│   ├── globals.css
-│   ├── (auth)/
-│   │   ├── callback/route.ts    ← OAuth PKCE exchange
-│   │   ├── login/page.tsx
-│   │   └── signup/page.tsx
-│   ├── (marketing)/             ← Landing page
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── dashboard/
-│   │   ├── candidate/           ← B2C dashboard
-│   │   │   ├── page.tsx
-│   │   │   └── CandidateDashboardClient.tsx
-│   │   └── company/             ← B2B HR dashboard
-│   │       ├── page.tsx
-│   │       └── CompanyDashboardClient.tsx
-│   └── api/
-│       ├── applications/route.ts
-│       ├── approvals/route.ts   ← CORE: approval queue + auto-apply trigger
-│       ├── companies/route.ts
-│       ├── jobs/route.ts
-│       ├── matches/route.ts
-│       ├── preferences/route.ts
-│       └── resumes/route.ts     ← PDF upload → parse → embed
-│
-├── components/
-│   ├── ui/                      ← shadcn primitives (do not edit)
-│   └── candidate/
-│       ├── ResumeUploader.tsx
-│       ├── ScoreCard.tsx
-│       ├── ApprovalQueueCard.tsx
-│       ├── ApplicationRow.tsx
-│       └── PreferenceForm.tsx
-│
-├── lib/
-│   ├── ai/                      ← All AI calls live here
-│   │   ├── parse-resume.ts      ← READ .claude/skills/resume-parser.md first
-│   │   ├── score-match.ts       ← READ .claude/skills/ai-matching.md first
-│   │   ├── embed-text.ts
-│   │   └── normalize-job.ts
-│   ├── automation/              ← READ .claude/skills/playwright-apply.md first
-│   │   ├── index.ts
-│   │   ├── router.ts
-│   │   └── platforms/
-│   │       ├── naukri.ts
-│   │       ├── linkedin.ts
-│   │       └── indeed.ts
-│   ├── db/                      ← All DB calls live here (READ .claude/skills/supabase-patterns.md first)
-│   │   ├── client.ts            ← Service-role client (bypasses RLS for server ops)
-│   │   ├── candidates.ts
-│   │   ├── resumes.ts
-│   │   ├── jobs.ts
-│   │   ├── applications.ts
-│   │   ├── preferences.ts
-│   │   └── companies.ts
-│   ├── schemas/                 ← Zod schemas for all API I/O
-│   │   ├── candidate.ts
-│   │   ├── resume.ts
-│   │   ├── job.ts
-│   │   ├── application.ts
-│   │   ├── preference.ts
-│   │   └── company.ts
-│   ├── services/                ← Business logic (orchestrates db/ + ai/)
-│   │   ├── match-service.ts
-│   │   ├── resume-service.ts
-│   │   ├── approval-service.ts
-│   │   ├── application-service.ts
-│   │   ├── job-service.ts
-│   │   └── company-service.ts
-│   ├── supabase/                ← Auth-aware SSR clients (cookie-based)
-│   │   ├── client.ts            ← Browser client (use in Client Components)
-│   │   └── server.ts            ← Server client (use in Server Components / API routes)
-│   ├── types/
-│   │   ├── database.ts          ← Generated Supabase types
-│   │   └── index.ts
-│   └── utils/
-│       └── index.ts             ← cn() and other shared helpers
-│
-├── supabase/
-│   ├── migrations/
-│   │   ├── 001_init.sql
-│   │   └── 002_indexes.sql
-│   └── functions/
-│       ├── parse-resume/
-│       ├── route-application/
-│       └── score-candidate/
-│
-└── playwright/
-    └── playwright.config.ts
-    ├── runner.ts
-    └── platforms/
-        ├── naukri.ts
-        ├── linkedin.ts
-        └── indeed.ts
-```
+### Resume Upload Pipeline (3-step to avoid Vercel timeouts)
+
+The frontend (`ResumeUploader.tsx`) calls three sequential API routes:
+
+1. **`/api/resumes/step-1-upload`** — Uploads PDF to Supabase Storage, extracts raw text via `pdf-parse`. Fast (~2s). Returns `{ text, fileName }`.
+2. **`/api/resumes/step-2-parse`** — Sends raw text to AI, gets structured JSON. Has `maxDuration = 60`. Returns `{ parsedData }`.
+3. **`/api/resumes/step-3-save`** — Generates embedding (optional, silently skipped on failure), inserts to DB, triggers match generation. Returns `{ resume }`.
+
+### AI Provider Layer (`lib/ai/providers.ts`)
+
+Central abstraction for all AI calls. Key exports:
+- `runStructuredTextTask({ taskName, systemPrompt, userContent, schema })` — calls text providers in priority order, validates output against Zod schema
+- `generateEmbedding(text)` — generates 1536-dim vector (Gemini 768-dim padded with zeros)
+- `runWithProviderFallback({ providers, taskName, run, maxRetries })` — retry with exponential backoff (2s/4s/8s), falls back to next provider after exhausting retries
+
+Provider priority is controlled by env vars:
+- `AI_TEXT_PROVIDER_ORDER=gemini,openai,groq` (default order)
+- `AI_EMBEDDING_PROVIDER_ORDER=gemini` (default)
+
+Resume parsing also has a regex fallback (`lib/ai/parse-resume-fallback.ts`) that always succeeds if all AI providers fail.
+
+### Key Layer Boundaries
+
+- All AI calls → `lib/ai/` (never call provider SDKs from components or API routes directly)
+- All DB calls → `lib/db/` (never call Supabase from components)
+- Business logic → `lib/services/` (orchestrates `db/` + `ai/`)
+- Auth-aware SSR client → `lib/supabase/server.ts`; browser client → `lib/supabase/client.ts`
+- Zod schemas for all API I/O → `lib/schemas/`
 
 ---
 
@@ -192,7 +104,7 @@ aplio/
 
 ### TypeScript
 - Strict mode ON — no `any`, no `as unknown`
-- All API responses typed with Zod schemas in `src/types/`
+- All API responses typed with Zod schemas in `lib/schemas/`
 - Use `satisfies` over `as` for type assertions
 
 ### Architecture
@@ -224,21 +136,22 @@ aplio/
 ## Environment Variables
 
 ```bash
-# .env.example — copy to .env.local and fill in
-
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
-# OpenAI
-OPENAI_API_KEY=
+# AI Providers (Gemini is primary — required; others are fallbacks)
+GOOGLE_AI_API_KEY=        # Gemini text + embeddings
+OPENAI_API_KEY=           # Fallback text provider
+GROQ_API_KEY=             # Fallback text provider
+
+# Override provider order (optional)
+AI_TEXT_PROVIDER_ORDER=gemini,openai,groq
+AI_EMBEDDING_PROVIDER_ORDER=gemini
 
 # Resend (email)
 RESEND_API_KEY=
-
-# n8n webhook secret
-N8N_WEBHOOK_SECRET=
 
 # Automation service URL (Playwright runner)
 AUTOMATION_SERVICE_URL=http://localhost:3001
@@ -265,11 +178,11 @@ AUTOMATION_API_KEY=
 
 ## AI Prompts — Governance
 
-All system prompts live in `src/lib/ai/prompts/`.
-If you modify a prompt, you MUST:
+System prompts are inline in `lib/ai/` functions (e.g., `parse-resume.ts`).
+If you modify a prompt:
 1. Comment the change with date and reason
-2. Re-run the prompt test suite: `npm run test:prompts`
-3. Compare output quality on 10 sample resumes before committing
+2. Run `npm run test:ai` to verify the provider layer still works
+3. Compare output quality on sample resumes before committing
 
 Prompts are considered IP — treat them with the same care as proprietary code.
 

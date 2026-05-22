@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { LayoutDashboard, FileText, Settings, ListChecks, History, LogOut, Menu, X, Edit } from 'lucide-react' // Added Edit icon
+import { LayoutDashboard, FileText, Settings, ListChecks, History, LogOut, Menu, X, Edit, Search, MessageSquare, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ResumeUploader } from '@/components/candidate/ResumeUploader'
 import { PreferenceWizard } from '@/components/candidate/PreferenceWizard' // Changed to PreferenceWizard
@@ -13,6 +13,7 @@ import { ApplicationRow } from '@/components/candidate/ApplicationRow'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { useToast } from '@/components/ui/toast'
 import type { Resume, Candidate, Application, Job, Preference, ParsedResume } from '@/lib/types' // Added ParsedResume import
 
 interface Props {
@@ -22,15 +23,16 @@ interface Props {
   initialPreferences: Preference | null
 }
 
-type Tab = 'overview' | 'resume' | 'resume-profile' | 'preferences' | 'queue' | 'applications' // Added 'resume-profile'
+type Tab = 'overview' | 'resume' | 'resume-profile' | 'preferences' | 'queue' | 'applications' | 'chat'
 
 const NAV = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'resume', label: 'Upload Resume', icon: FileText }, // Changed label
-  { id: 'resume-profile', label: 'Edit Resume Profile', icon: Edit }, // New tab
+  { id: 'resume', label: 'Upload Resume', icon: FileText },
+  { id: 'resume-profile', label: 'Edit Resume Profile', icon: Edit },
   { id: 'preferences', label: 'Preferences', icon: Settings },
   { id: 'queue', label: 'Approval Queue', icon: ListChecks },
   { id: 'applications', label: 'Applications', icon: History },
+  { id: 'chat', label: 'AI Assistant', icon: MessageSquare },
 ] as const
 
 type ApplicationWithJob = Application & { job: Job }
@@ -42,6 +44,7 @@ type SuggestedJob = {
 
 export function CandidateDashboardClient({ user, candidate, initialResumes, initialPreferences }: Props) {
   const router = useRouter()
+  const { toast } = useToast()
   const [tab, setTab] = useState<Tab>('overview')
   const [resumes, setResumes] = useState<Resume[]>(initialResumes)
   const [preferences, setPreferences] = useState<Preference | null>(initialPreferences)
@@ -57,6 +60,9 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
   const [applications, setApplications] = useState<ApplicationWithJob[]>([])
   const [appsLoaded, setAppsLoaded] = useState(false)
   const [appsLoading, setAppsLoading] = useState(false)
+
+  const [discovering, setDiscovering] = useState(false)
+  const [discoverResult, setDiscoverResult] = useState<{ jobsFound: number; jobsStored: number } | null>(null)
 
   const loadQueue = useCallback(async () => {
     if (queueLoaded) return
@@ -121,6 +127,27 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  async function handleDiscoverJobs() {
+    setDiscovering(true)
+    setDiscoverResult(null)
+    try {
+      const res = await fetch('/api/jobs/discover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      if (res.ok) {
+        const data = await res.json()
+        setDiscoverResult(data)
+        setQueueLoaded(false)
+        loadQueue()
+        toast(`Found ${data.jobsFound} jobs, ${data.jobsStored} stored!`, 'success')
+      } else {
+        toast('Failed to discover jobs. Please try again.', 'error')
+      }
+    } catch {
+      toast('Network error. Check your connection.', 'error')
+    } finally {
+      setDiscovering(false)
+    }
   }
 
   const latestResume = resumes[0]
@@ -304,7 +331,16 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 )}
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleDiscoverJobs} disabled={discovering || !preferences}>
+                  {discovering ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+                  {discovering ? 'Discovering...' : 'Discover Jobs'}
+                </Button>
+                {discoverResult && (
+                  <p className="self-center text-sm text-muted-foreground">
+                    Found {discoverResult.jobsFound} jobs, {discoverResult.jobsStored} stored
+                  </p>
+                )}
                 <Button variant="outline" onClick={() => setTab('queue')}>
                   <ListChecks className="h-4 w-4 mr-2" />
                   Review jobs {queue.length > 0 && `(${queue.length})`}
@@ -435,6 +471,8 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
               )}
             </div>
           )}
+
+          {tab === 'chat' && <AIChatPanel />}
         </div>
       </main>
     </div>
@@ -447,6 +485,80 @@ function StatCard({ label, value, sub, accent }: { label: string; value: string;
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
       <p className={`text-lg font-bold mt-1 ${accent ? 'text-primary' : ''}`}>{value}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+    </div>
+  )
+}
+
+function AIChatPanel() {
+  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function send() {
+    if (!input.trim() || loading) return
+    const userMsg = { role: 'user' as const, content: input.trim() }
+    const updated = [...messages, userMsg]
+    setMessages(updated)
+    setInput('')
+    setLoading(true)
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: updated, mode: 'chat' }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setMessages([...updated, { role: 'assistant', content: data.content }])
+      } else {
+        setMessages([...updated, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }])
+      }
+    } catch {
+      setMessages([...updated, { role: 'assistant', content: 'Network error. Please try again.' }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">AI Assistant</h1>
+        <p className="text-muted-foreground mt-1">Ask about jobs, get cover letter drafts, or career advice</p>
+      </div>
+      <div className="depth-surface rounded-[1.25rem] border border-white/8 flex flex-col h-[500px]">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {messages.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center mt-8">Start a conversation — ask anything about your job search.</p>
+          )}
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] rounded-xl px-4 py-2 text-sm whitespace-pre-wrap ${
+                msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+              }`}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-xl px-4 py-2 text-sm text-muted-foreground">Thinking...</div>
+            </div>
+          )}
+        </div>
+        <div className="border-t border-white/8 p-3 flex gap-2">
+          <input
+            className="flex-1 bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Ask about jobs, cover letters, interview tips..."
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
+          />
+          <Button size="sm" onClick={send} disabled={loading || !input.trim()}>
+            Send
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

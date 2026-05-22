@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCandidateByUserId } from '@/lib/db/candidates'
+import { upsertCandidate } from '@/lib/db/candidates'
 
 // STEP 1: UPLOAD & EXTRACT TEXT
 // This endpoint uploads the file to storage and parses the PDF text. (Fast: ~2s)
 
 export async function POST(req: NextRequest) {
+  console.log('[Step1] Request received')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -13,9 +15,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const candidate = await getCandidateByUserId(user.id)
+  // Auto-create candidate profile if it doesn't exist yet
+  let candidate = await getCandidateByUserId(user.id)
   if (!candidate) {
-    return NextResponse.json({ error: 'Candidate profile not found' }, { status: 404 })
+    candidate = await upsertCandidate({
+      user_id: user.id,
+      full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+      email: user.email || '',
+    })
   }
 
   let formData: FormData
@@ -39,29 +46,35 @@ export async function POST(req: NextRequest) {
   }
 
   // 1. Upload PDF to Supabase Storage (FAST)
+  console.log('[Step1] Uploading to storage, size:', file.size, 'type:', file.type)
   const fileName = `${user.id}/${Date.now()}.pdf`
   const { error: uploadError } = await supabase.storage
     .from('resumes')
     .upload(fileName, file, { contentType: 'application/pdf', upsert: false })
 
   if (uploadError) {
+    console.error('[Step1] Storage upload failed:', uploadError.message)
     return NextResponse.json({ 
       error: `Storage Error: ${uploadError.message}. Ensure the 'resumes' bucket exists.`
     }, { status: 500 })
   }
+  console.log('[Step1] Storage upload OK:', fileName)
 
   // 2. Extract Text from PDF (FAST)
   let pdfText = ''
   try {
+    console.log('[Step1] Starting PDF text extraction...')
     const arrayBuffer = await file.arrayBuffer()
     const { default: pdfParse } = await import('pdf-parse')
     const result = await pdfParse(Buffer.from(arrayBuffer))
     pdfText = result.text || '[Empty PDF]'
+    console.log('[Step1] PDF extraction OK, chars:', pdfText.length)
   } catch (err) {
-    console.warn('[PDF Extraction] Failed:', err)
+    console.error('[Step1] PDF extraction failed:', err)
     pdfText = '[PDF extraction failed]'
   }
 
   // 3. Return the Extracted Text to the Frontend
+  console.log('[Step1] Returning text to frontend, pdfText length:', pdfText.length)
   return NextResponse.json({ text: pdfText, fileName }, { status: 200 })
 }

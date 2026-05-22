@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/discovery",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/candidate-discovery",
+      "schedule": "0 8 * * *"
     }
   ]
 }
