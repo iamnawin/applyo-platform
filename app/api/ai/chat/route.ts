@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { chatCompletion, type FreeLLMMessage } from '@/lib/ai/freellmapi-client'
+import { rateLimit } from '@/lib/rate-limit'
 
 const SYSTEM_PROMPTS: Record<string, string> = {
   draft: 'You are a professional career assistant. Help draft cover letters, emails, and application responses. Be concise and professional.',
@@ -15,6 +16,11 @@ export async function POST(req: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { allowed } = rateLimit(`ai-chat:${user.id}`)
+  if (!allowed) {
+    return NextResponse.json({ success: false, error: 'Too many requests. Please wait a moment.' }, { status: 429 })
   }
 
   let body: { messages?: FreeLLMMessage[]; context?: Record<string, unknown>; mode?: string }

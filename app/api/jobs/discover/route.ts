@@ -5,6 +5,7 @@ import { getPreferencesByCandidateId } from '@/lib/db/preferences'
 import { getLatestResumeByCandidateId } from '@/lib/db/resumes'
 import { discoverJobs } from '@/lib/services/job-discovery-service'
 import { generateMatchesForCandidate } from '@/lib/services/match-service'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 60
 
@@ -14,6 +15,11 @@ export async function POST(req: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { allowed } = rateLimit(`discover:${user.id}`)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
   }
 
   const candidate = await getCandidateByUserId(user.id)

@@ -13,6 +13,7 @@ import { ApplicationRow } from '@/components/candidate/ApplicationRow'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { useToast } from '@/components/ui/toast'
 import type { Resume, Candidate, Application, Job, Preference, ParsedResume } from '@/lib/types' // Added ParsedResume import
 
 interface Props {
@@ -43,6 +44,7 @@ type SuggestedJob = {
 
 export function CandidateDashboardClient({ user, candidate, initialResumes, initialPreferences }: Props) {
   const router = useRouter()
+  const { toast } = useToast()
   const [tab, setTab] = useState<Tab>('overview')
   const [resumes, setResumes] = useState<Resume[]>(initialResumes)
   const [preferences, setPreferences] = useState<Preference | null>(initialPreferences)
@@ -60,7 +62,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
   const [appsLoading, setAppsLoading] = useState(false)
 
   const [discovering, setDiscovering] = useState(false)
-  const [discoverResult, setDiscoverResult] = useState<{ discovered: number; matched: number } | null>(null)
+  const [discoverResult, setDiscoverResult] = useState<{ jobsFound: number; jobsStored: number } | null>(null)
 
   const loadQueue = useCallback(async () => {
     if (queueLoaded) return
@@ -137,8 +139,13 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
         setDiscoverResult(data)
         setQueueLoaded(false)
         loadQueue()
+        toast(`Found ${data.jobsFound} jobs, ${data.jobsStored} stored!`, 'success')
+      } else {
+        toast('Failed to discover jobs. Please try again.', 'error')
       }
-    } catch { /* handled by UI */ } finally {
+    } catch {
+      toast('Network error. Check your connection.', 'error')
+    } finally {
       setDiscovering(false)
     }
   }
@@ -331,7 +338,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 </Button>
                 {discoverResult && (
                   <p className="self-center text-sm text-muted-foreground">
-                    Found {discoverResult.discovered} jobs, {discoverResult.matched} matched
+                    Found {discoverResult.jobsFound} jobs, {discoverResult.jobsStored} stored
                   </p>
                 )}
                 <Button variant="outline" onClick={() => setTab('queue')}>
@@ -502,7 +509,7 @@ function AIChatPanel() {
       })
       if (res.ok) {
         const data = await res.json()
-        setMessages([...updated, { role: 'assistant', content: data.response }])
+        setMessages([...updated, { role: 'assistant', content: data.content }])
       } else {
         setMessages([...updated, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }])
       }
