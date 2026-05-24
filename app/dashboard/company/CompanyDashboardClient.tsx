@@ -149,7 +149,7 @@ export function CompanyDashboardClient({ user }: Props) {
       `}
       >
         <div className="flex items-center justify-between p-6 border-b">
-          <span className="text-xl font-bold tracking-tight">Aplio <span className="text-xs font-normal text-muted-foreground">HR</span></span>
+          <span className="text-xl font-bold tracking-tight">Applyo <span className="text-xs font-normal text-muted-foreground">HR</span></span>
           <button className="md:hidden" onClick={() => setMobileOpen(false)}>
             <X className="h-5 w-5" />
           </button>
@@ -197,7 +197,7 @@ export function CompanyDashboardClient({ user }: Props) {
           <button onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-semibold">Aplio HR</span>
+          <span className="font-semibold">Applyo HR</span>
         </div>
 
         <div className="max-w-4xl mx-auto p-6 space-y-8">

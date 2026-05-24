@@ -6,7 +6,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Aplio — Apply Everywhere',
+  title: 'Applyo — Apply Everywhere',
   description: 'Upload resume once. Apply everywhere. Just show up to interviews.',
 }
 

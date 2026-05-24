@@ -54,7 +54,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
       <Card className="w-full max-w-sm border-white/10">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Sign in to Aplio</CardTitle>
+          <CardTitle className="text-2xl font-bold">Sign in to Applyo</CardTitle>
           <CardDescription>
             Upload once. Apply everywhere.
           </CardDescription>

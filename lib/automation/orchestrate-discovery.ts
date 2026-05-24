@@ -1,10 +1,10 @@
 import { findCareerPage } from '@/lib/ai/find-career-page'
 import { detectATS } from '@/lib/ai/detect-ats'
 import { scrapeGreenhouseBoard } from './platforms/greenhouse-scraper'
-import { scrapeLeverBoard } from './platforms/lever-scraper' // Import Lever scraper
-import { scrapeWorkdayBoard } from './platforms/workday-scraper' // Import Workday scraper
-import { scrapeLinkedInJobs } from './platforms/linkedin-scraper' // Import LinkedIn scraper
-// import { scrapeGenericBoard } from './platforms/generic-scraper' // Future: generic scraper
+import { scrapeLeverBoard } from './platforms/lever-scraper'
+import { scrapeWorkdayBoard } from './platforms/workday-scraper'
+import { scrapeLinkedInJobs } from './platforms/linkedin-scraper'
+import { scrapeIndeedBoard } from './platforms/indeed-scraper'
 
 /**
  * Orchestrates the discovery of job postings for a given company.
@@ -41,11 +41,9 @@ export async function orchestrateJobDiscovery(companyName: string): Promise<stri
       await scrapeGreenhouseBoard(careerPageResult.career_page_url)
       return `Successfully initiated Greenhouse scraping for ${companyName}.`
     case 'indeed':
-      // Indeed scraper expects a search URL, not a career page URL.
-      // This would require a more sophisticated approach to generate an Indeed search URL for the company.
-      // For now, we'll log a warning and skip.
-      console.warn(`[Discovery Orchestrator] Indeed ATS detected, but direct scraping from career page is not supported yet. Skipping.`)
-      return `Indeed ATS detected for ${companyName}, but direct scraping from career page is not supported yet.`
+      console.log(`[Discovery Orchestrator] Triggering Indeed scraper for ${companyName}.`)
+      await scrapeIndeedBoard(`https://www.indeed.com/jobs?q=${encodeURIComponent(companyName)}&sort=date`)
+      return `Successfully initiated Indeed scraping for ${companyName}.`
     case 'lever': // Implement Lever scraper
       console.log(`[Discovery Orchestrator] Triggering Lever scraper for ${companyName}.`)
       await scrapeLeverBoard(careerPageResult.career_page_url)

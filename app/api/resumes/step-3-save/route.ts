@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getCandidateByUserId } from '@/lib/db/candidates'
 import { embedText } from '@/lib/ai/embed-text'
 import { generateMatchesForCandidate } from '@/lib/services/match-service'
+import { discoverJobs } from '@/lib/services/job-discovery-service'
+import { getPreferencesByCandidateId } from '@/lib/db/preferences'
+import { listJobs } from '@/lib/db/jobs'
 
 // STEP 3: VECTORS & SAVING
 // Embedding is optional — if it fails, the resume is always saved and visible.
@@ -64,10 +67,21 @@ export async function POST(req: NextRequest) {
   }
   console.log('[Step3] DB insert OK, resume id:', finalResume?.id)
 
-  // Trigger job matching in background (only if embedding exists)
-  if (embedding) {
-    generateMatchesForCandidate(candidate.id).catch(() => {})
+  // Trigger job discovery + matching in background (regardless of embedding)
+  const runBackgroundMatching = async () => {
+    try {
+      const existingJobs = await listJobs(1)
+      if (existingJobs.length === 0) {
+        const preferences = await getPreferencesByCandidateId(candidate.id)
+        const skills = parsedData.skills ?? []
+        await discoverJobs(candidate.id, preferences, skills)
+      }
+      await generateMatchesForCandidate(candidate.id)
+    } catch (e: any) {
+      console.warn('[Step3] Background matching failed:', e?.message)
+    }
   }
+  runBackgroundMatching()
 
   return NextResponse.json({ resume: finalResume }, { status: 201 })
 }

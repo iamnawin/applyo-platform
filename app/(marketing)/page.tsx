@@ -21,7 +21,7 @@ export default function LandingPage() {
       <header className="fixed top-0 inset-x-0 z-50 border-b border-white/8 bg-[rgba(7,11,20,0.78)] backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <span className="text-background text-xl font-bold tracking-tight">
-            Aplio
+            Applyo
           </span>
           <nav className="flex items-center gap-3">
             <Link
@@ -64,7 +64,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="text-background/60 text-lg leading-relaxed max-w-md">
-              Upload your resume once. Aplio&apos;s AI matches you to jobs,
+              Upload your resume once. Applyo&apos;s AI matches you to jobs,
               scores each one, and auto-applies across Naukri, LinkedIn & Indeed —
               only after you approve.
             </p>
@@ -99,7 +99,7 @@ export default function LandingPage() {
                 <span className="h-2.5 w-2.5 rounded-full bg-red-400/60" />
                 <span className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" />
                 <span className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
-                <span className="ml-3 text-xs text-background/30 font-mono">aplio.app/queue</span>
+                <span className="ml-3 text-xs text-background/30 font-mono">Applyo.app/queue</span>
               </div>
 
               <div className="p-4 space-y-3">
@@ -187,7 +187,7 @@ export default function LandingPage() {
                 n: '01',
                 icon: Upload,
                 title: 'Upload your resume',
-                body: 'Drop your PDF once. Aplio\'s AI parses your skills, experience, and preferences into a structured profile.',
+                body: 'Drop your PDF once. Applyo\'s AI parses your skills, experience, and preferences into a structured profile.',
               },
               {
                 n: '02',
@@ -199,7 +199,7 @@ export default function LandingPage() {
                 n: '03',
                 icon: CheckCircle2,
                 title: 'Approve & auto-apply',
-                body: 'Review your curated queue, approve the ones you like, and Aplio handles the application — fully automated.',
+                body: 'Review your curated queue, approve the ones you like, and Applyo handles the application — fully automated.',
               },
             ].map(({ n, icon: Icon, title, body }) => (
               <div key={n} className="relative flex flex-col items-center text-center gap-4">
@@ -375,7 +375,7 @@ export default function LandingPage() {
       {/* ── FOOTER ─────────────────────────────────────── */}
       <footer className="border-t border-white/8 bg-[rgba(7,11,20,0.92)] py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="text-background/70 text-sm font-bold tracking-tight">Aplio</span>
+          <span className="text-background/70 text-sm font-bold tracking-tight">Applyo</span>
           <p className="text-background/30 text-xs font-mono">
             © {new Date().getFullYear()} ZeroOrigins AI. All rights reserved.
           </p>

@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { ScoreCard } from './ScoreCard'
-import { generateApplicationContent } from '@/lib/ai/generate-application-content' // Import AI function
-import type { Application, Job, ParsedResume } from '@/lib/types' // Import ParsedResume
+import type { Application, Job } from '@/lib/types'
 
 interface Props {
   application: Application & { job: Job }
@@ -52,20 +51,20 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
     setGeneratingContent(true)
     setGeneratedContent(null)
     try {
-      // Fetch candidate's parsed resume data
-      const res = await fetch(`/api/candidate/${application.candidate_id}/resume-profile`)
-      if (!res.ok) throw new Error('Failed to fetch resume profile.')
-      const parsedResume: ParsedResume = await res.json()
-
-      const content = await generateApplicationContent(
-        parsedResume,
-        normalized,
-        'cover_letter'
-      )
-      setGeneratedContent(content)
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `Write a concise cover letter for the role "${normalized.title}" at "${normalized.company}". Location: ${normalized.location ?? 'Remote'}. Skills needed: ${normalized.skills?.join(', ') ?? 'N/A'}.` }],
+          mode: 'cover_letter',
+          context: { candidateId: application.candidate_id, jobId: application.job_id },
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to generate')
+      const data = await res.json()
+      setGeneratedContent(data.content)
       setShowContentPreview(true)
-    } catch (err) {
-      console.error('Error generating content:', err)
+    } catch {
       setGeneratedContent('Failed to generate content. Please try again.')
     } finally {
       setGeneratingContent(false)
