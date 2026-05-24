@@ -3,18 +3,19 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { LayoutDashboard, FileText, Settings, ListChecks, History, LogOut, Menu, X, Edit, Search, MessageSquare, Loader2 } from 'lucide-react'
+import { LayoutDashboard, FileText, Settings, ListChecks, History, LogOut, Menu, X, Edit, Search, MessageSquare, Loader2, CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ResumeUploader } from '@/components/candidate/ResumeUploader'
-import { PreferenceWizard } from '@/components/candidate/PreferenceWizard' // Changed to PreferenceWizard
+import { PreferenceWizard } from '@/components/candidate/PreferenceWizard'
 import { ResumeProfileForm } from '@/components/candidate/ResumeProfileForm'
 import { ApprovalQueueCard } from '@/components/candidate/ApprovalQueueCard'
 import { ApplicationRow } from '@/components/candidate/ApplicationRow'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
-import type { Resume, Candidate, Application, Job, Preference, ParsedResume } from '@/lib/types' // Added ParsedResume import
+import type { Resume, Candidate, Application, Job, Preference, ParsedResume } from '@/lib/types'
 
 interface Props {
   user: { id: string; email: string; name: string }
@@ -54,6 +55,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
   const [queue, setQueue] = useState<ApplicationWithJob[]>([])
   const [queueLoaded, setQueueLoaded] = useState(false)
   const [queueLoading, setQueueLoading] = useState(false)
+  const [approvingAll, setApprovingAll] = useState(false)
   const [suggestedJobs, setSuggestedJobs] = useState<SuggestedJob[]>([])
   const [suggestedLoading, setSuggestedLoading] = useState(false)
 
@@ -121,6 +123,25 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
 
   function handleQueueAction(id: string) {
     setQueue(prev => prev.filter(a => a.id !== id))
+  }
+
+  async function handleApproveAll() {
+    if (queue.length === 0) return
+    setApprovingAll(true)
+    let approved = 0
+    for (const app of queue) {
+      try {
+        const res = await fetch('/api/approvals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ application_id: app.id, action: 'approved' }),
+        })
+        if (res.ok) approved++
+      } catch { /* continue with next */ }
+    }
+    setQueue([])
+    setApprovingAll(false)
+    toast(`Approved ${approved} job${approved > 1 ? 's' : ''}! Applyo is now applying on your behalf.`, 'success')
   }
 
   async function handleSignOut() {
@@ -237,6 +258,14 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <p className="text-muted-foreground mt-1">Here&apos;s your Applyo snapshot</p>
               </div>
 
+              {/* Onboarding Progress */}
+              <OnboardingStepper
+                hasResume={resumes.length > 0}
+                hasPreferences={!!preferences}
+                hasQueue={queue.length > 0}
+                onNavigate={setTab}
+              />
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <StatCard
                   label="Resume"
@@ -264,11 +293,19 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                     <p className="font-semibold text-base">Start by uploading your resume</p>
                     <p className="text-muted-foreground text-sm mt-0.5">Applyo will parse it and start finding matching jobs for you automatically</p>
                   </div>
-                  <ResumeUploader onUploaded={r => {
-                    setResumes([r])
-                    setQueueLoaded(false)
-                    setTab('queue')
-                  }} />
+                  <ResumeUploader
+                    onUploaded={r => {
+                      setResumes([r])
+                      setQueueLoaded(false)
+                    }}
+                    onDiscoveryComplete={(matchCount) => {
+                      if (matchCount > 0) {
+                        setQueueLoaded(false)
+                        loadQueue()
+                        setTab('queue')
+                      }
+                    }}
+                  />
                 </div>
               )}
 
@@ -302,15 +339,41 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                   <p className="text-muted-foreground text-sm mt-0.5">Simple rule-based suggestions from stored jobs across sources.</p>
                 </div>
                 {suggestedLoading ? (
-                  <div className="text-sm text-muted-foreground">Loading suggestions...</div>
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="depth-surface rounded-[1.25rem] border border-white/8 p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-48" />
+                            <Skeleton className="h-3 w-32" />
+                          </div>
+                          <Skeleton className="h-6 w-16 rounded-full" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : suggestedJobs.length === 0 ? (
-                  <div className="depth-surface rounded-[1.2rem] border border-dashed border-white/10 p-6 text-sm text-muted-foreground">
-                    No suggestions yet. Add job postings and preferences to start seeing matches.
+                  <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-8 text-center text-muted-foreground">
+                    <Search className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">No suggestions yet</p>
+                    <p className="text-sm mt-1 mb-4">
+                      {!preferences
+                        ? 'Set your preferences first so Applyo knows what to look for.'
+                        : 'Click "Discover Jobs" to find matching opportunities.'}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => !preferences ? setTab('preferences') : handleDiscoverJobs()}
+                      disabled={discovering}
+                    >
+                      {!preferences ? 'Set Preferences' : discovering ? 'Discovering...' : 'Discover Jobs'}
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {suggestedJobs.slice(0, 4).map(suggestion => (
-                      <div key={suggestion.job.id} className="depth-surface rounded-[1.25rem] border border-white/8 p-4">
+                      <div key={suggestion.job.id} className="depth-surface rounded-[1.25rem] border border-white/8 p-4 hover:border-primary/20 transition-colors">
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="font-medium">{suggestion.job.normalized_data.title}</p>
@@ -359,11 +422,21 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <h1 className="text-2xl font-bold">Upload Resume</h1>
                 <p className="text-muted-foreground mt-1">Upload your latest resume. If AI is unavailable, Applyo will store it and parse it later.</p>
               </div>
-              <ResumeUploader onUploaded={r => {
-                setResumes(prev => [r, ...prev])
-                setQueueLoaded(false)
-                setResumeProfileData(r.parsed_data) // Update resume profile data when new resume is uploaded
-              }} />
+              <ResumeUploader
+                onUploaded={r => {
+                  setResumes(prev => [r, ...prev])
+                  setQueueLoaded(false)
+                  setResumeProfileData(r.parsed_data)
+                }}
+                onDiscoveryComplete={(matchCount) => {
+                  if (matchCount > 0) {
+                    setQueueLoaded(false)
+                    loadQueue()
+                    setTab('queue')
+                    toast(`Found ${matchCount} matching job${matchCount > 1 ? 's' : ''}! Review them below.`, 'success')
+                  }
+                }}
+              />
               {resumes.length > 0 && (
                 <div>
                   <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Your resumes</h2>
@@ -422,12 +495,45 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
 
           {tab === 'queue' && (
             <div className="space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold">Approval Queue</h1>
-                <p className="text-muted-foreground mt-1">Review AI-matched jobs before Applyo applies. You must approve each one.</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold">Approval Queue</h1>
+                  <p className="text-muted-foreground mt-1">Review AI-matched jobs before Applyo applies. You must approve each one.</p>
+                </div>
+                {queue.length > 1 && (
+                  <Button
+                    onClick={handleApproveAll}
+                    disabled={approvingAll}
+                    className="shrink-0"
+                  >
+                    {approvingAll ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                    {approvingAll ? 'Approving...' : `Approve All (${queue.length})`}
+                  </Button>
+                )}
               </div>
               {queueLoading && (
-                <div className="text-center py-12 text-muted-foreground text-sm">Loading matches...</div>
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="depth-surface rounded-[1.25rem] border border-white/8 p-6 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-5 w-56" />
+                          <Skeleton className="h-3 w-40" />
+                        </div>
+                        <Skeleton className="h-6 w-20 rounded-full" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Skeleton className="h-6 w-16 rounded-md" />
+                        <Skeleton className="h-6 w-16 rounded-md" />
+                        <Skeleton className="h-6 w-16 rounded-md" />
+                      </div>
+                      <div className="flex gap-3 pt-2">
+                        <Skeleton className="h-9 flex-1 rounded-md" />
+                        <Skeleton className="h-9 flex-1 rounded-md" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
               {!queueLoading && queue.length === 0 && (
                 <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
@@ -453,7 +559,17 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <p className="text-muted-foreground mt-1">Track every job Applyo has applied to on your behalf</p>
               </div>
               {appsLoading && (
-                <div className="text-center py-12 text-muted-foreground text-sm">Loading applications...</div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="flex items-center gap-4 p-4 border rounded-lg">
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-44" />
+                        <Skeleton className="h-3 w-32" />
+                      </div>
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </div>
+                  ))}
+                </div>
               )}
               {!appsLoading && applications.length === 0 && (
                 <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
@@ -485,6 +601,47 @@ function StatCard({ label, value, sub, accent }: { label: string; value: string;
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
       <p className={`text-lg font-bold mt-1 ${accent ? 'text-primary' : ''}`}>{value}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+    </div>
+  )
+}
+
+function OnboardingStepper({ hasResume, hasPreferences, hasQueue, onNavigate }: {
+  hasResume: boolean; hasPreferences: boolean; hasQueue: boolean; onNavigate: (tab: Tab) => void
+}) {
+  const steps = [
+    { done: hasResume, label: 'Upload resume', tab: 'resume' as Tab },
+    { done: hasPreferences, label: 'Set preferences', tab: 'preferences' as Tab },
+    { done: hasQueue, label: 'Review & approve jobs', tab: 'queue' as Tab },
+  ]
+  const allDone = steps.every(s => s.done)
+  if (allDone) return null
+
+  const nextStep = steps.find(s => !s.done)
+
+  return (
+    <div className="depth-surface rounded-[1.25rem] border border-white/8 p-4">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Getting started</p>
+      <div className="flex items-center gap-2">
+        {steps.map((step, i) => (
+          <div key={i} className="flex items-center gap-2">
+            {step.done ? (
+              <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+            ) : (
+              <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0" />
+            )}
+            <span className={`text-sm ${step.done ? 'text-muted-foreground line-through' : 'text-foreground font-medium'}`}>
+              {step.label}
+            </span>
+            {i < steps.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground/30 mx-1" />}
+          </div>
+        ))}
+      </div>
+      {nextStep && (
+        <Button size="sm" className="mt-3" onClick={() => onNavigate(nextStep.tab)}>
+          {nextStep.label}
+          <ArrowRight className="h-3 w-3 ml-1" />
+        </Button>
+      )}
     </div>
   )
 }

@@ -8,14 +8,15 @@ import type { Resume } from '@/lib/types'
 
 interface Props {
   onUploaded: (resume: Resume) => void
+  onDiscoveryComplete?: (matchCount: number) => void
 }
 
 const GENERIC_UPLOAD_ERROR = 'AI parsing is temporarily unavailable. Please try again shortly.'
 
-export function ResumeUploader({ onUploaded }: Props) {
+export function ResumeUploader({ onUploaded, onDiscoveryComplete }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
-  const [status, setStatus] = useState<'idle' | 'upload_step' | 'parse_step' | 'save_step' | 'success' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'upload_step' | 'parse_step' | 'save_step' | 'discover_step' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [fileName, setFileName] = useState('')
@@ -85,12 +86,35 @@ export function ResumeUploader({ onUploaded }: Props) {
       // ----------------------------------------------------------------------
       // DONE!
       // ----------------------------------------------------------------------
-      setStatus('success')
-      setSuccessMsg('Resume uploaded and parsed successfully!')
+      setStatus('discover_step')
       
       if (data3.resume && onUploaded) {
         onUploaded(data3.resume as Resume)
       }
+
+      // Wait for background discovery + matching to complete, then report
+      // Poll the approvals endpoint to see when matches appear
+      let matchCount = 0
+      for (let attempt = 0; attempt < 12; attempt++) {
+        await new Promise(r => setTimeout(r, 3000))
+        try {
+          const qRes = await fetch('/api/approvals')
+          if (qRes.ok) {
+            const queue = await qRes.json()
+            if (Array.isArray(queue) && queue.length > 0) {
+              matchCount = queue.length
+              break
+            }
+          }
+        } catch { /* keep polling */ }
+      }
+
+      setStatus('success')
+      setSuccessMsg(matchCount > 0
+        ? `Resume parsed! Found ${matchCount} matching job${matchCount > 1 ? 's' : ''} for you.`
+        : 'Resume uploaded and parsed successfully!')
+      
+      if (onDiscoveryComplete) onDiscoveryComplete(matchCount)
 
     } catch (err) {
       console.error('Sequence Failed:', err)
@@ -114,12 +138,13 @@ export function ResumeUploader({ onUploaded }: Props) {
     if (file) upload(file)
   }
 
-  const isWorking = status === 'upload_step' || status === 'parse_step' || status === 'save_step'
+  const isWorking = status === 'upload_step' || status === 'parse_step' || status === 'save_step' || status === 'discover_step'
 
   let workingMessage = 'Processing...'
   if (status === 'upload_step') workingMessage = 'Uploading and reading PDF...'
   if (status === 'parse_step') workingMessage = 'AI is extracting your resume data...'
   if (status === 'save_step') workingMessage = 'Saving to database...'
+  if (status === 'discover_step') workingMessage = 'Finding matching jobs for you...'
 
   return (
     <Card>

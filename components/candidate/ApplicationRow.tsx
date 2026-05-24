@@ -36,7 +36,7 @@ export function ApplicationRow({ application }: Props) {
     : null
 
   return (
-    <div className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+    <div className="flex items-center gap-4 p-4 border border-white/8 rounded-xl depth-surface hover:border-primary/20 transition-colors">
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm truncate">{n.title ?? 'Job'}</p>
         <div className="flex flex-wrap items-center gap-3 mt-0.5 text-xs text-muted-foreground">
@@ -58,7 +58,7 @@ export function ApplicationRow({ application }: Props) {
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground hidden sm:inline">
           {Math.round(application.match_score * 100)}% match
         </span>
         <Badge variant={STATUS_VARIANTS[application.status] ?? 'secondary'}>
