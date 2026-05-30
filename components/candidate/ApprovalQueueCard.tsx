@@ -62,6 +62,7 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
       })
       if (!res.ok) throw new Error('Failed to generate')
       const data = await res.json()
+      if (!data.success || !data.content) throw new Error(data.error || 'Failed to generate')
       setGeneratedContent(data.content)
       setShowContentPreview(true)
     } catch {
