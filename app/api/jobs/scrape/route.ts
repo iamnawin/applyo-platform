@@ -1,18 +1,38 @@
 import { NextResponse } from 'next/server'
 import { scrapeGreenhouseBoard } from '@/lib/automation/platforms/greenhouse-scraper'
-import { scrapeIndeedBoard } from '@/lib/automation/platforms/indeed-scraper' // Import Indeed scraper
-import { scrapeLeverBoard } from '@/lib/automation/platforms/lever-scraper' // Import Lever scraper
-import { scrapeWorkdayBoard } from '@/lib/automation/platforms/workday-scraper' // Import Workday scraper
+import { scrapeIndeedBoard } from '@/lib/automation/platforms/indeed-scraper'
+import { scrapeLeverBoard } from '@/lib/automation/platforms/lever-scraper'
+import { scrapeWorkdayBoard } from '@/lib/automation/platforms/workday-scraper'
+import { scrapeNaukriJobs, scrapeSingleJob } from '@/lib/services/firecrawl-scraper'
+import { scrapeJobsWithApify, type ApifyPlatform } from '@/lib/services/apify-scraper'
 
 export async function POST(request: Request) {
   // TODO: Implement authentication/authorization for this endpoint
   // Only authorized users or internal services should be able to trigger scraping.
 
   try {
-    const { jobBoardUrl, platform } = await request.json() // Destructure platform
+    const { jobBoardUrl, platform, keyword, location, limit } = await request.json()
 
-    if (!jobBoardUrl || !platform) {
-      return NextResponse.json({ error: 'jobBoardUrl and platform are required' }, { status: 400 })
+    if (!platform) {
+      return NextResponse.json({ error: 'platform is required' }, { status: 400 })
+    }
+
+    // Apify-based scraping uses keyword search, not a URL
+    const apifyPlatforms: ApifyPlatform[] = ['naukri', 'linkedin', 'indeed']
+    if (platform === 'apify' || (apifyPlatforms.includes(platform) && keyword)) {
+      if (!keyword) {
+        return NextResponse.json({ error: 'keyword is required for Apify scraping' }, { status: 400 })
+      }
+      const apifyTarget = platform === 'apify' ? 'naukri' : platform as ApifyPlatform
+      const apifyResult = await scrapeJobsWithApify(apifyTarget, { keyword, location, limit })
+      return NextResponse.json({
+        message: `Apify: ingested ${apifyResult.ingested}/${apifyResult.total} jobs from ${apifyTarget}`,
+        ...apifyResult,
+      })
+    }
+
+    if (!jobBoardUrl) {
+      return NextResponse.json({ error: 'jobBoardUrl is required' }, { status: 400 })
     }
 
     let message = ''
@@ -44,6 +64,17 @@ export async function POST(request: Request) {
         }
         await scrapeWorkdayBoard(jobBoardUrl)
         message = `Successfully initiated Workday scraping for ${jobBoardUrl}`
+        break
+      case 'naukri':
+        if (!jobBoardUrl.includes('naukri.com')) {
+          return NextResponse.json({ error: 'Invalid URL for Naukri platform.' }, { status: 400 })
+        }
+        const naukriResult = await scrapeNaukriJobs(jobBoardUrl)
+        message = `Scraped ${naukriResult.ingested} jobs from Naukri`
+        break
+      case 'firecrawl':
+        const fcResult = await scrapeSingleJob(jobBoardUrl)
+        message = `Successfully scraped and ingested job from ${jobBoardUrl}`
         break
       default:
         return NextResponse.json({ error: 'Unsupported platform' }, { status: 400 })
