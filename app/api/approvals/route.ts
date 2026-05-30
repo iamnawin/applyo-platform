@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCandidateByUserId } from '@/lib/db/candidates'
 import { createServerClient } from '@/lib/db/client'
-import { upsertApplication } from '@/lib/db/applications'
+import { logToApplication, updateApplicationAutomationStatus, upsertApplication } from '@/lib/db/applications'
 import { triggerApply } from '@/lib/automation'
+import { getManualApplyReason } from '@/lib/automation/apply-eligibility'
 import { z } from 'zod'
 
 // GET /api/approvals — list pending applications for current user
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
   const db = createServerClient()
   const { data: app, error: fetchError } = await db
     .from('applications')
-    .select('id, candidate_id, job_id')
+    .select('id, candidate_id, job_id, job:jobs(source, source_url)')
     .eq('id', application_id)
     .eq('candidate_id', candidate.id)
     .single()
@@ -66,8 +67,23 @@ export async function POST(req: NextRequest) {
   })
 
   if (action === 'approved') {
-    triggerApply(updated.id, generated_cover_letter).catch(err => {
+    const job = Array.isArray(app.job) ? app.job[0] : app.job
+    const manualReason = getManualApplyReason({
+      browserConfigured: Boolean(process.env.BROWSER_WS_ENDPOINT),
+      sourceUrl: job?.source_url,
+      source: job?.source,
+    })
+
+    if (manualReason) {
+      await updateApplicationAutomationStatus(updated.id, 'manual')
+      await logToApplication(updated.id, `Manual apply required: ${manualReason}`)
+      return NextResponse.json({ ...updated, automation_status: 'manual' })
+    }
+
+    await updateApplicationAutomationStatus(updated.id, 'in_progress')
+    triggerApply(updated.id, generated_cover_letter).catch(async err => {
       console.error(`Failed to trigger automation for application ${updated.id}:`, err)
+      await updateApplicationAutomationStatus(updated.id, 'failed').catch(() => {})
     })
   }
 
