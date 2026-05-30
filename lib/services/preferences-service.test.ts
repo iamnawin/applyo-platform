@@ -20,6 +20,20 @@ test('buildPreferencesFromResume derives editable preferences from parsed resume
   assert.deepEqual(prefs.job_types, ['full-time', 'remote'])
 })
 
+test('buildPreferencesFromResume infers Salesforce BA preferences without experience titles', () => {
+  const prefs = buildPreferencesFromResume({
+    name: 'SRI VANI NEMANI',
+    summary: 'Salesforce Implementation & Administration, Requirements Gathering & User Stories, Healthcare & Life Sciences Domain, Agile / Iterative Delivery',
+    skills: ['Salesforce', 'Requirements Gathering', 'User Stories', 'CRM', 'UAT'],
+    experience: [],
+    education: [],
+    languages: [],
+  } as any, 'candidate-1')
+
+  assert.deepEqual(prefs.desired_roles, ['Salesforce Business Analyst', 'Salesforce Administrator'])
+  assert.deepEqual(prefs.desired_job_titles, ['Salesforce Business Analyst', 'Salesforce Administrator'])
+})
+
 test('normalizePreferencePayload converts empty optional strings and clamps daily limit', () => {
   const payload = normalizePreferencePayload({
     desired_roles: ['Engineer', ''],

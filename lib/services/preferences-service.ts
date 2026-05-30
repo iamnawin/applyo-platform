@@ -24,6 +24,36 @@ function optionalClean(value: string | null | undefined): string | undefined {
   return cleaned || undefined
 }
 
+function inferRolesFromResume(parsedData: ParsedResume): string[] {
+  const text = [
+    parsedData.summary,
+    ...(parsedData.skills ?? []),
+    ...(parsedData.experience ?? []).flatMap(experience => [experience.title, experience.description]),
+  ].filter(Boolean).join(' ').toLowerCase()
+
+  const roles: string[] = []
+  if (text.includes('salesforce') && (
+    text.includes('business analyst') ||
+    text.includes('requirements') ||
+    text.includes('user stories') ||
+    text.includes('uat') ||
+    text.includes('crm')
+  )) {
+    roles.push('Salesforce Business Analyst')
+  }
+  if (text.includes('salesforce') && (
+    text.includes('administration') ||
+    text.includes('administrator') ||
+    text.includes('implementation') ||
+    text.includes('configuration')
+  )) {
+    roles.push('Salesforce Administrator')
+  }
+  if (!roles.length && text.includes('business analyst')) roles.push('Business Analyst')
+
+  return roles
+}
+
 function clampDailyLimit(value: number | undefined): number {
   if (!Number.isFinite(value)) return 10
   return Math.min(Math.max(Math.trunc(value ?? 10), 1), 50)
@@ -34,12 +64,13 @@ export function buildPreferencesFromResume(
   candidateId: string,
 ): Partial<Preference> & { candidate_id: string } {
   const titles = uniqueClean((parsedData.experience ?? []).map(experience => experience.title), 5)
+  const inferredTitles = titles.length ? titles : inferRolesFromResume(parsedData)
   const locations = uniqueClean([parsedData.location], 3)
 
   return {
     candidate_id: candidateId,
-    desired_roles: titles,
-    desired_job_titles: titles,
+    desired_roles: inferredTitles,
+    desired_job_titles: inferredTitles,
     preferred_locations: locations,
     job_types: DEFAULT_JOB_TYPES,
     max_applications_per_day: 10,

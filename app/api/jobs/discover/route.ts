@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCandidateByUserId } from '@/lib/db/candidates'
-import { getPreferencesByCandidateId } from '@/lib/db/preferences'
+import { getPreferencesByCandidateId, upsertPreferences } from '@/lib/db/preferences'
 import { getLatestResumeByCandidateId } from '@/lib/db/resumes'
 import { discoverJobs } from '@/lib/services/job-discovery-service'
 import { generateMatchesForCandidate } from '@/lib/services/match-service'
 import { rateLimit } from '@/lib/rate-limit'
+import { buildPreferencesFromResume } from '@/lib/services/preferences-service'
 
 export const maxDuration = 60
 
@@ -27,8 +28,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Candidate profile not found' }, { status: 404 })
   }
 
-  const preferences = await getPreferencesByCandidateId(candidate.id)
+  let preferences = await getPreferencesByCandidateId(candidate.id)
   const resume = await getLatestResumeByCandidateId(candidate.id)
+  if (!preferences && resume?.parsed_data) {
+    try {
+      preferences = await upsertPreferences(buildPreferencesFromResume(resume.parsed_data, candidate.id))
+    } catch (error) {
+      console.warn('[discover] Failed to auto-create preferences:', error instanceof Error ? error.message : error)
+    }
+  }
   const resumeSkills = resume?.parsed_data?.skills ?? []
   const resumeTitles = (resume?.parsed_data?.experience ?? [])
     .map(experience => experience.title)
