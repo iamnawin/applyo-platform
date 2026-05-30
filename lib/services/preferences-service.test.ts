@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildPreferencesFromResume, normalizePreferencePayload } from './preferences-service.ts'
+import { buildLegacyPreferencePayload, buildPreferencesFromResume, normalizePreferencePayload } from './preferences-service.ts'
 
 test('buildPreferencesFromResume derives editable preferences from parsed resume', () => {
   const prefs = buildPreferencesFromResume({
@@ -54,4 +54,34 @@ test('normalizePreferencePayload converts empty optional strings and clamps dail
   assert.equal(payload.work_authorization, undefined)
   assert.equal(payload.desired_salary_currency, undefined)
   assert.deepEqual(payload.desired_roles, ['Engineer'])
+})
+
+test('buildLegacyPreferencePayload keeps core fields and removes newer optional columns', () => {
+  const payload = buildLegacyPreferencePayload({
+    candidate_id: 'candidate-1',
+    desired_roles: ['Salesforce Business Analyst'],
+    preferred_locations: ['Remote'],
+    job_types: ['full-time'],
+    min_salary: undefined,
+    max_applications_per_day: 10,
+    blacklisted_companies: [],
+    notify_on_match: true,
+    target_companies: ['Acme'],
+    preferred_industries: ['Healthcare'],
+    work_authorization: 'US Citizen',
+    desired_salary_currency: 'USD',
+    desired_job_titles: ['Salesforce Business Analyst'],
+  } as any)
+
+  assert.deepEqual(Object.keys(payload).sort(), [
+    'blacklisted_companies',
+    'candidate_id',
+    'desired_roles',
+    'job_types',
+    'max_applications_per_day',
+    'min_salary',
+    'notify_on_match',
+    'preferred_locations',
+  ])
+  assert.deepEqual(payload.desired_roles, ['Salesforce Business Analyst'])
 })

@@ -28,17 +28,24 @@ export async function ingestJob(
   companyId?: string | null,
 ): Promise<Job> {
   let normalized: NormalizedJob
-  try {
-    normalized = await normalizeJob(rawDescription)
-  } catch {
+  const isResumeFallback = source === 'resume-fallback'
+  if (isResumeFallback) {
     normalized = fallbackNormalizeJob(rawDescription)
+  } else {
+    try {
+      normalized = await normalizeJob(rawDescription)
+    } catch {
+      normalized = fallbackNormalizeJob(rawDescription)
+    }
   }
 
   let embedding: number[] | null = null
-  try {
-    embedding = await embedText(normalized.skills.join(' ') + ' ' + (normalized.description_summary ?? ''))
-  } catch {
-    embedding = null
+  if (!isResumeFallback) {
+    try {
+      embedding = await embedText(normalized.skills.join(' ') + ' ' + (normalized.description_summary ?? ''))
+    } catch {
+      embedding = null
+    }
   }
 
   return createJob({

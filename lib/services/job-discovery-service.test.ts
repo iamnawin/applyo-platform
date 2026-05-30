@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 
 import {
   buildDiscoveryQueries,
+  shouldUseImmediateFallback,
   buildResumeTargetedFallbackJobs,
   dedupeDiscoveredJobs,
   pickTopDiscoveredJobs,
@@ -59,4 +60,14 @@ test('buildResumeTargetedFallbackJobs creates Salesforce search jobs from querie
   assert.equal(jobs[0].source, 'resume-fallback')
   assert.match(jobs[0].raw, /Salesforce Business Analyst/)
   assert.match(jobs[0].sourceUrl ?? '', /Salesforce/)
+})
+
+test('shouldUseImmediateFallback identifies resume-first Salesforce discovery', () => {
+  const queries = [
+    { keyword: 'Salesforce Business Analyst', location: 'India' },
+    { keyword: 'Salesforce Administrator', location: 'India' },
+  ]
+
+  assert.equal(shouldUseImmediateFallback(queries), true)
+  assert.equal(shouldUseImmediateFallback([{ keyword: 'software engineer', location: 'India' }]), false)
 })

@@ -12,13 +12,14 @@ import {
   buildResumeTargetedFallbackJobs,
   dedupeDiscoveredJobs,
   pickTopDiscoveredJobs,
+  shouldUseImmediateFallback,
   TARGET_JOB_COUNT,
   type DiscoveredJobCandidate,
 } from './job-discovery-utils'
 
 const DISCOVERY_PLATFORMS = ['linkedin', 'indeed', 'naukri'] as const
 export { buildDiscoveryQueries, dedupeDiscoveredJobs, pickTopDiscoveredJobs }
-const APIFY_ACTOR_TIMEOUT_MS = 12000
+const APIFY_ACTOR_TIMEOUT_MS = 4000
 
 export interface DiscoveryResult {
   jobsFound: number
@@ -90,6 +91,11 @@ export async function discoverJobs(
   const queries = buildDiscoveryQueries(preferences, resumeSkills, resumeTitles)
   const discovered: DiscoveredJobCandidate[] = []
   const errors: string[] = []
+
+  if (shouldUseImmediateFallback(queries)) {
+    discovered.push(...buildResumeTargetedFallbackJobs(queries, TARGET_JOB_COUNT))
+    errors.push('Created resume-targeted Salesforce/Business Analyst search jobs immediately.')
+  }
 
   if (process.env.APIFY_API_TOKEN) {
     discovery:

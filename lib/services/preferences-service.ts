@@ -97,3 +97,16 @@ export function normalizePreferencePayload(input: Omit<Preference, 'candidate_id
     desired_job_titles: uniqueClean(input.desired_job_titles ?? []),
   }
 }
+
+export function buildLegacyPreferencePayload<T extends Partial<Preference> & { candidate_id: string }>(input: T) {
+  return {
+    candidate_id: input.candidate_id,
+    desired_roles: uniqueClean(input.desired_roles ?? []),
+    preferred_locations: uniqueClean(input.preferred_locations ?? []),
+    job_types: uniqueClean(input.job_types ?? []) as Preference['job_types'],
+    min_salary: input.min_salary,
+    max_applications_per_day: clampDailyLimit(input.max_applications_per_day),
+    blacklisted_companies: uniqueClean(input.blacklisted_companies ?? []),
+    notify_on_match: input.notify_on_match ?? true,
+  }
+}

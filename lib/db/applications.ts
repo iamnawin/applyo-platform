@@ -34,7 +34,34 @@ export async function upsertApplication(
     .upsert(application, { onConflict: 'candidate_id,job_id' })
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    const message = error.message?.toLowerCase() ?? ''
+    if (
+      message.includes('match_reasons') ||
+      message.includes('automation_status') ||
+      message.includes('automation_logs')
+    ) {
+      const {
+        match_reasons: _matchReasons,
+        automation_status: _automationStatus,
+        automation_logs: _automationLogs,
+        ...legacyApplication
+      } = application
+      const { data: legacyData, error: legacyError } = await db
+        .from('applications')
+        .upsert(legacyApplication, { onConflict: 'candidate_id,job_id' })
+        .select()
+        .single()
+      if (legacyError) throw legacyError
+      return {
+        ...legacyData,
+        match_reasons: application.match_reasons ?? null,
+        automation_status: application.automation_status ?? 'pending',
+        automation_logs: application.automation_logs ?? [],
+      } as Application
+    }
+    throw error
+  }
   return data as Application
 }
 

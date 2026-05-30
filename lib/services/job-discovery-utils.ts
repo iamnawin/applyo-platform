@@ -79,6 +79,13 @@ export function pickTopDiscoveredJobs(jobs: DiscoveredJobCandidate[], target = T
   return jobs.slice(0, target)
 }
 
+export function shouldUseImmediateFallback(queries: DiscoveryQuery[]): boolean {
+  return queries.some(query => {
+    const keyword = query.keyword.toLowerCase()
+    return keyword.includes('salesforce') || keyword.includes('business analyst') || keyword.includes('crm')
+  })
+}
+
 function searchUrl(keyword: string, location: string, source: 'linkedin' | 'indeed') {
   const q = encodeURIComponent(keyword)
   const l = encodeURIComponent(location)
