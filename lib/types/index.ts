@@ -40,6 +40,8 @@ export interface Application {
   job_id: string
   match_score: number
   match_reasons: string[] | null
+  automation_status?: 'pending' | 'in_progress' | 'submitted' | 'failed' | 'manual' | 'disabled'
+  automation_logs?: Array<{ timestamp: string; message: string }>
   status: 'pending' | 'approved' | 'skipped' | 'applied' | 'rejected' | 'interview' | 'submitted' | 'failed' // Added submitted/failed
   applied_at: string | null
   created_at: string

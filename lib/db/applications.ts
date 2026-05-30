@@ -16,9 +16,10 @@ export async function listCandidatesForCompany(companyId: string) {
   const db = createServerClient()
   const { data, error } = await db
     .from('applications')
-    .select('*, candidates(full_name, email, location), jobs(normalized_data, company_id)')
+    .select('*, candidates(full_name, email, location, resumes(parsed_data, created_at)), jobs!inner(normalized_data, company_id)')
     .eq('jobs.company_id', companyId)
     .neq('status', 'pending')
+    .neq('status', 'skipped')
     .order('match_score', { ascending: false })
   if (error) throw error
   return (data ?? [])

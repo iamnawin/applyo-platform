@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCandidateByUserId, upsertCandidate } from '@/lib/db/candidates'
 import { getPreferencesByCandidateId, upsertPreferences } from '@/lib/db/preferences'
+import { normalizePreferencePayload } from '@/lib/services/preferences-service'
 import { z } from 'zod'
 
 const preferencesSchema = z.object({
@@ -9,7 +10,7 @@ const preferencesSchema = z.object({
   preferred_locations: z.array(z.string()).default([]),
   job_types: z.array(z.enum(['full-time', 'part-time', 'contract', 'remote'])).default([]),
   min_salary: z.number().optional(),
-  max_applications_per_day: z.number().int().min(1).max(50).default(10),
+  max_applications_per_day: z.number().int().default(10),
   blacklisted_companies: z.array(z.string()).default([]),
   notify_on_match: z.boolean().default(true),
   // New granular preferences
@@ -47,7 +48,10 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
   try {
-    const prefs = await upsertPreferences({ candidate_id: candidate.id, ...parsed.data })
+    const prefs = await upsertPreferences({
+      candidate_id: candidate.id,
+      ...normalizePreferencePayload(parsed.data),
+    })
     return NextResponse.json(prefs)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to save preferences'

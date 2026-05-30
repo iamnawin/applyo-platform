@@ -17,9 +17,20 @@ function includesAny(text: string, values: string[]) {
 export async function getSuggestedJobsForUser(userId: string): Promise<SuggestedJob[]> {
   const candidate = await getCandidateByUserId(userId)
   if (!candidate) return []
+  return getSuggestedJobsForCandidate(candidate.id)
+}
 
+export async function getSuggestedJobsForCandidate(candidateId: string, limit = 20): Promise<SuggestedJob[]> {
+  const { createServerClient } = await import('@/lib/db/client')
+  const db = createServerClient()
+  const { data: candidate, error } = await db
+    .from('candidates')
+    .select('*')
+    .eq('id', candidateId)
+    .single()
+  if (error || !candidate) return []
   const preferences = await getPreferencesByCandidateId(candidate.id)
-  const jobs = await listJobs(100)
+  const jobs = await listJobs(200)
 
   return jobs
     .filter(job => {
@@ -65,5 +76,5 @@ export async function getSuggestedJobsForUser(userId: string): Promise<Suggested
       }
     })
     .sort((a, b) => b.score - a.score)
-    .slice(0, 8)
+    .slice(0, limit)
 }

@@ -68,8 +68,8 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
   const [discoverResult, setDiscoverResult] = useState<{ jobsFound: number; jobsStored: number } | null>(null)
   const [selectedSuggestion, setSelectedSuggestion] = useState<SuggestedJob | null>(null)
 
-  const loadQueue = useCallback(async () => {
-    if (queueLoaded) return
+  const loadQueue = useCallback(async (force = false) => {
+    if (queueLoaded && !force) return
     setQueueLoading(true)
     try {
       const res = await fetch('/api/approvals')
@@ -161,8 +161,12 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
         const data = await res.json()
         setDiscoverResult(data)
         setQueueLoaded(false)
-        loadQueue()
-        toast(`Found ${data.jobsFound} jobs, ${data.jobsStored} stored!`, 'success')
+        await loadQueue(true)
+        fetch('/api/matches')
+          .then(r => r.ok ? r.json() : [])
+          .then(data => { if (Array.isArray(data)) setSuggestedJobs(data) })
+          .catch(() => {})
+        toast(`Found ${data.jobsFound} jobs, ${data.jobsStored} stored, ${data.matchesCreated ?? 0} queued!`, 'success')
       } else {
         toast('Failed to discover jobs. Please try again.', 'error')
       }
@@ -299,11 +303,12 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                     onUploaded={r => {
                       setResumes([r])
                       setQueueLoaded(false)
+                      fetch('/api/preferences').then(res => res.ok ? res.json() : null).then(p => { if (p) setPreferences(p) }).catch(() => {})
                     }}
                     onDiscoveryComplete={(matchCount) => {
                       if (matchCount > 0) {
                         setQueueLoaded(false)
-                        loadQueue()
+                        loadQueue(true)
                         setTab('queue')
                       }
                     }}
@@ -338,7 +343,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
               <div className="space-y-3">
                 <div>
                   <p className="font-semibold text-base">Suggested jobs</p>
-                  <p className="text-muted-foreground text-sm mt-0.5">Simple rule-based suggestions from stored jobs across sources.</p>
+                  <p className="text-muted-foreground text-sm mt-0.5">Resume-first suggestions from stored and discovered jobs across sources.</p>
                 </div>
                 {suggestedLoading ? (
                   <div className="space-y-3">
@@ -359,22 +364,20 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                     <Search className="h-8 w-8 mx-auto mb-3 opacity-30" />
                     <p className="font-medium">No suggestions yet</p>
                     <p className="text-sm mt-1 mb-4">
-                      {!preferences
-                        ? 'Set your preferences first so Applyo knows what to look for.'
-                        : 'Click "Discover Jobs" to find matching opportunities.'}
+                      Click &quot;Discover Jobs&quot; to find matching opportunities from your resume.
                     </p>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => !preferences ? setTab('preferences') : handleDiscoverJobs()}
+                      onClick={handleDiscoverJobs}
                       disabled={discovering}
                     >
-                      {!preferences ? 'Set Preferences' : discovering ? 'Discovering...' : 'Discover Jobs'}
+                      {discovering ? 'Discovering...' : 'Discover Jobs'}
                     </Button>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {suggestedJobs.slice(0, 4).map(suggestion => (
+                    {suggestedJobs.slice(0, 20).map(suggestion => (
                       <button
                         key={suggestion.job.id}
                         type="button"
@@ -402,7 +405,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Button onClick={handleDiscoverJobs} disabled={discovering || !preferences}>
+                <Button onClick={handleDiscoverJobs} disabled={discovering || resumes.length === 0}>
                   {discovering ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
                   {discovering ? 'Discovering...' : 'Discover Jobs'}
                 </Button>
@@ -434,11 +437,12 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                   setResumes(prev => [r, ...prev])
                   setQueueLoaded(false)
                   setResumeProfileData(r.parsed_data)
+                  fetch('/api/preferences').then(res => res.ok ? res.json() : null).then(p => { if (p) setPreferences(p) }).catch(() => {})
                 }}
                 onDiscoveryComplete={(matchCount) => {
                   if (matchCount > 0) {
                     setQueueLoaded(false)
-                    loadQueue()
+                    loadQueue(true)
                     setTab('queue')
                     toast(`Found ${matchCount} matching job${matchCount > 1 ? 's' : ''}! Review them below.`, 'success')
                   }
@@ -605,7 +609,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
         reasons={selectedSuggestion?.reasons}
         open={!!selectedSuggestion}
         onOpenChange={(open) => { if (!open) setSelectedSuggestion(null) }}
-        onAddedToQueue={() => { setQueueLoaded(false); loadQueue() }}
+        onAddedToQueue={() => { setQueueLoaded(false); loadQueue(true) }}
       />
     </div>
   )
@@ -626,7 +630,7 @@ function OnboardingStepper({ hasResume, hasPreferences, hasQueue, onNavigate }: 
 }) {
   const steps = [
     { done: hasResume, label: 'Upload resume', tab: 'resume' as Tab },
-    { done: hasPreferences, label: 'Set preferences', tab: 'preferences' as Tab },
+    { done: hasPreferences, label: 'Review preferences', tab: 'preferences' as Tab },
     { done: hasQueue, label: 'Review & approve jobs', tab: 'queue' as Tab },
   ]
   const allDone = steps.every(s => s.done)

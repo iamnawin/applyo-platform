@@ -4,12 +4,13 @@ import { listJobs } from '@/lib/db/jobs'
 import { upsertApplication } from '@/lib/db/applications'
 import { getPreferencesByCandidateId } from '@/lib/db/preferences'
 import type { Application } from '@/lib/types'
+import { getSuggestedJobsForCandidate } from './basic-matching'
 
 export async function generateMatchesForCandidate(candidateId: string): Promise<Application[]> {
   const resumes = await getResumesByCandidateId(candidateId)
   if (!resumes.length) return []
 
-  const activeResume = resumes.find(resume => resume.processing_status === 'ready')
+  const activeResume = resumes.find(resume => !resume.processing_status || resume.processing_status === 'ready')
   if (!activeResume) return []
 
   const resume = activeResume.parsed_data
@@ -18,7 +19,18 @@ export async function generateMatchesForCandidate(candidateId: string): Promise<
   const results: Application[] = []
 
   for (const job of jobs) {
-    const score = await scoreMatch(resume, job.normalized_data, preferences || undefined)
+    let score
+    try {
+      score = await scoreMatch(resume, job.normalized_data, preferences || undefined)
+    } catch {
+      const fallback = await getSuggestedJobsForCandidate(candidateId, 100)
+      const fallbackMatch = fallback.find(item => item.job.id === job.id)
+      score = {
+        score: fallbackMatch?.score ?? 0,
+        pros: fallbackMatch?.reasons ?? ['Rule-based profile match'],
+        cons: fallbackMatch ? [] : ['No strong deterministic match found'],
+      }
+    }
     if (score.score >= 50) {
       // Flatten pros and cons for the simple string array in DB
       const combinedReasons = [

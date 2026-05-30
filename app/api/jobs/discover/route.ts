@@ -30,18 +30,17 @@ export async function POST(req: NextRequest) {
   const preferences = await getPreferencesByCandidateId(candidate.id)
   const resume = await getLatestResumeByCandidateId(candidate.id)
   const resumeSkills = resume?.parsed_data?.skills ?? []
+  const resumeTitles = (resume?.parsed_data?.experience ?? [])
+    .map(experience => experience.title)
+    .filter(Boolean)
 
   try {
-    const result = await discoverJobs(candidate.id, preferences, resumeSkills)
+    const result = await discoverJobs(candidate.id, preferences, resumeSkills, resumeTitles)
 
     // Trigger matching after discovery
-    if (result.jobsStored > 0) {
-      generateMatchesForCandidate(candidate.id).catch(err =>
-        console.error('[discover] Match generation failed:', err)
-      )
-    }
+    const matches = await generateMatchesForCandidate(candidate.id)
 
-    return NextResponse.json(result)
+    return NextResponse.json({ ...result, matchesCreated: matches.length })
   } catch (err) {
     console.error('[discover] Error:', err)
     return NextResponse.json(

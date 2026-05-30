@@ -54,7 +54,7 @@ export async function routeApply(applicationId: string, generatedCoverLetter?: s
       throw new Error('Job has no source URL, cannot apply automatically.')
     }
 
-    const activeResume = application.candidate.resumes?.find(r => r.processing_status === 'ready')
+    const activeResume = application.candidate.resumes?.find(r => !r.processing_status || r.processing_status === 'ready')
     if (!activeResume || !activeResume.parsed_data || !activeResume.storage_path) {
       throw new Error('No active, parsed, or stored resume found for the candidate.')
     }

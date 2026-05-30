@@ -2,25 +2,21 @@
  * Job Discovery Service — finds live job postings via Apify actors.
  * Uses candidate preferences to build search queries, runs Apify actors,
  * normalizes via AI, and stores in the jobs table.
- * Falls back to Firecrawl if Apify is not configured.
+ * Returns a graceful no-op when Apify is not configured.
  */
 
-import { createJob } from '@/lib/db/jobs'
-import { runStructuredTextTask } from '@/lib/ai/providers'
-import { normalizedJobSchema } from '@/lib/schemas/job'
 import type { Preference } from '@/lib/types'
 import { scrapeJobsWithApify } from './apify-scraper'
+import {
+  buildDiscoveryQueries,
+  dedupeDiscoveredJobs,
+  pickTopDiscoveredJobs,
+  TARGET_JOB_COUNT,
+  type DiscoveredJobCandidate,
+} from './job-discovery-utils'
 
-function buildKeyword(preferences: Preference | null, resumeSkills?: string[]): string {
-  if (preferences?.desired_roles?.length) return preferences.desired_roles[0]
-  if (resumeSkills?.length) return resumeSkills.slice(0, 3).join(' ')
-  return 'software engineer'
-}
-
-function buildLocation(preferences: Preference | null): string {
-  if (preferences?.preferred_locations?.length) return preferences.preferred_locations[0]
-  return 'India'
-}
+const DISCOVERY_PLATFORMS = ['linkedin', 'indeed', 'naukri'] as const
+export { buildDiscoveryQueries, dedupeDiscoveredJobs, pickTopDiscoveredJobs }
 
 export interface DiscoveryResult {
   jobsFound: number
@@ -32,20 +28,55 @@ export async function discoverJobs(
   candidateId: string,
   preferences: Preference | null,
   resumeSkills?: string[],
+  resumeTitles?: string[],
 ): Promise<DiscoveryResult> {
-  const keyword = buildKeyword(preferences, resumeSkills)
-  const location = buildLocation(preferences)
-
-  // Use Apify if configured, otherwise throw helpful error
   if (!process.env.APIFY_API_TOKEN) {
-    throw new Error('APIFY_API_TOKEN not configured. Add it to your environment variables.')
+    return {
+      jobsFound: 0,
+      jobsStored: 0,
+      errors: ['APIFY_API_TOKEN not configured. Discovery skipped.'],
+    }
   }
 
-  const result = await scrapeJobsWithApify('naukri', { keyword, location, limit: 10 })
+  const queries = buildDiscoveryQueries(preferences, resumeSkills, resumeTitles)
+  const discovered: DiscoveredJobCandidate[] = []
+  const errors: string[] = []
+
+  discovery:
+  for (const query of queries) {
+    for (const platform of DISCOVERY_PLATFORMS) {
+      if (discovered.length >= TARGET_JOB_COUNT) break discovery
+
+      try {
+        const result = await scrapeJobsWithApify(platform, {
+          ...query,
+          limit: Math.ceil(TARGET_JOB_COUNT / DISCOVERY_PLATFORMS.length),
+          ingest: false,
+        })
+        discovered.push(...result.items)
+        errors.push(...result.errors)
+      } catch (error) {
+        errors.push(`${platform}: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+  }
+
+  const selectedJobs = pickTopDiscoveredJobs(dedupeDiscoveredJobs(discovered), TARGET_JOB_COUNT)
+  let jobsStored = 0
+
+  for (const job of selectedJobs) {
+    try {
+      const { ingestJob } = await import('./job-service')
+      await ingestJob(job.raw, job.source, job.sourceUrl)
+      jobsStored++
+    } catch (error) {
+      errors.push(`ingest ${job.source}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
 
   return {
-    jobsFound: result.total,
-    jobsStored: result.ingested,
-    errors: result.errors,
+    jobsFound: selectedJobs.length,
+    jobsStored,
+    errors,
   }
 }

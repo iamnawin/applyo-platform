@@ -1,0 +1,50 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+
+import {
+  buildDiscoveryQueries,
+  dedupeDiscoveredJobs,
+  pickTopDiscoveredJobs,
+} from './job-discovery-utils.ts'
+
+test('buildDiscoveryQueries uses resume titles, skills, preferences, and locations', () => {
+  const queries = buildDiscoveryQueries(
+    {
+      desired_roles: ['Frontend Engineer'],
+      desired_job_titles: ['React Developer'],
+      preferred_locations: ['Bengaluru'],
+    } as any,
+    ['React', 'TypeScript', 'Node.js'],
+    ['Software Engineer', 'UI Developer'],
+    'India',
+  )
+
+  assert.deepEqual(queries.slice(0, 3), [
+    { keyword: 'React Developer', location: 'Bengaluru' },
+    { keyword: 'Frontend Engineer', location: 'Bengaluru' },
+    { keyword: 'Software Engineer', location: 'Bengaluru' },
+  ])
+  assert.ok(queries.some(query => query.keyword === 'React TypeScript Node.js'))
+})
+
+test('dedupeDiscoveredJobs removes repeated source URLs and title/company/location duplicates', () => {
+  const jobs = dedupeDiscoveredJobs([
+    { source: 'linkedin', sourceUrl: 'https://example.com/jobs/1', raw: 'a' },
+    { source: 'indeed', sourceUrl: 'https://example.com/jobs/1', raw: 'b' },
+    { source: 'naukri', sourceUrl: '', raw: 'Frontend Engineer\nAcme\nRemote\nBuild UI' },
+    { source: 'linkedin', sourceUrl: '', raw: 'frontend engineer\nacme\nremote\nDuplicate' },
+  ])
+
+  assert.equal(jobs.length, 2)
+  assert.deepEqual(jobs.map(job => job.raw), ['a', 'Frontend Engineer\nAcme\nRemote\nBuild UI'])
+})
+
+test('pickTopDiscoveredJobs caps selected jobs at target count', () => {
+  const jobs = Array.from({ length: 25 }, (_, index) => ({
+    source: 'linkedin',
+    sourceUrl: `https://example.com/${index}`,
+    raw: `Job ${index}`,
+  }))
+
+  assert.equal(pickTopDiscoveredJobs(jobs, 20).length, 20)
+})

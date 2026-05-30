@@ -69,6 +69,11 @@ export interface Database {
           max_applications_per_day: number
           blacklisted_companies: string[]
           notify_on_match: boolean
+          target_companies: string[]
+          preferred_industries: string[]
+          work_authorization: string | null
+          desired_salary_currency: string | null
+          desired_job_titles: string[]
           updated_at: string
         }
         Insert: Omit<Database['public']['Tables']['preferences']['Row'], 'id' | 'updated_at'>
@@ -80,7 +85,10 @@ export interface Database {
           candidate_id: string
           job_id: string
           match_score: number
+          match_reasons: string[] | null
           status: 'pending' | 'approved' | 'skipped' | 'applied' | 'rejected' | 'interview'
+          automation_status: 'pending' | 'in_progress' | 'submitted' | 'failed' | 'manual' | 'disabled'
+          automation_logs: Array<{ timestamp: string; message: string }>
           applied_at: string | null
           created_at: string
         }

@@ -4,8 +4,8 @@ import { getCandidateByUserId } from '@/lib/db/candidates'
 import { embedText } from '@/lib/ai/embed-text'
 import { generateMatchesForCandidate } from '@/lib/services/match-service'
 import { discoverJobs } from '@/lib/services/job-discovery-service'
-import { getPreferencesByCandidateId } from '@/lib/db/preferences'
-import { listJobs } from '@/lib/db/jobs'
+import { getPreferencesByCandidateId, upsertPreferences } from '@/lib/db/preferences'
+import { buildPreferencesFromResume } from '@/lib/services/preferences-service'
 
 // STEP 3: VECTORS & SAVING
 // Embedding is optional — if it fails, the resume is always saved and visible.
@@ -67,15 +67,24 @@ export async function POST(req: NextRequest) {
   }
   console.log('[Step3] DB insert OK, resume id:', finalResume?.id)
 
+  // Auto-fill preferences from parsed resume if none exist yet
+  const existingPrefs = await getPreferencesByCandidateId(candidate.id)
+  if (!existingPrefs) {
+    try {
+      await upsertPreferences(buildPreferencesFromResume(parsedData, candidate.id))
+      console.info('[Step3] Auto-filled preferences from resume')
+    } catch (e: any) {
+      console.warn('[Step3] Auto-fill preferences failed:', e?.message)
+    }
+  }
+
   // Trigger job discovery + matching in background (regardless of embedding)
   const runBackgroundMatching = async () => {
     try {
-      const existingJobs = await listJobs(1)
-      if (existingJobs.length === 0) {
-        const preferences = await getPreferencesByCandidateId(candidate.id)
-        const skills = parsedData.skills ?? []
-        await discoverJobs(candidate.id, preferences, skills)
-      }
+      const preferences = await getPreferencesByCandidateId(candidate.id)
+      const skills = parsedData.skills ?? []
+      const titles = (parsedData.experience ?? []).map((experience: any) => experience.title).filter(Boolean)
+      await discoverJobs(candidate.id, preferences, skills, titles)
       await generateMatchesForCandidate(candidate.id)
     } catch (e: any) {
       console.warn('[Step3] Background matching failed:', e?.message)

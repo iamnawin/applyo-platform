@@ -16,12 +16,14 @@ export interface ApifyScrapeOptions {
   keyword: string
   location?: string
   limit?: number
+  ingest?: boolean
 }
 
 export interface ApifyScrapeResult {
   ingested: number
   total: number
   errors: string[]
+  items: Array<{ source: ApifyPlatform; sourceUrl?: string; raw: string }>
 }
 
 // Free tier: $5/month — keep runs small to avoid burning credits
@@ -35,7 +37,7 @@ export async function scrapeJobsWithApify(
   options: ApifyScrapeOptions,
 ): Promise<ApifyScrapeResult> {
   const actorId = ACTORS[platform]
-  const result: ApifyScrapeResult = { ingested: 0, total: 0, errors: [] }
+  const result: ApifyScrapeResult = { ingested: 0, total: 0, errors: [], items: [] }
 
   const input = buildActorInput(platform, options)
   const run = await client.actor(actorId).call(input)
@@ -48,8 +50,11 @@ export async function scrapeJobsWithApify(
       const raw = formatJobText(item)
       const source = platform
       const sourceUrl = (item.url ?? item.jobUrl ?? item.link ?? '') as string
-      await ingestJob(raw, source, sourceUrl || undefined)
-      result.ingested++
+      result.items.push({ raw, source, sourceUrl: sourceUrl || undefined })
+      if (options.ingest !== false) {
+        await ingestJob(raw, source, sourceUrl || undefined)
+        result.ingested++
+      }
     } catch (e) {
       result.errors.push(e instanceof Error ? e.message : String(e))
     }

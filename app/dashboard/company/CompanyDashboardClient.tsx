@@ -32,6 +32,14 @@ interface CandidateProfile {
     full_name: string
     email: string
     location: string | null
+    resumes?: Array<{
+      parsed_data?: {
+        summary?: string
+        skills?: string[]
+        experience?: Array<{ title?: string; company?: string }>
+      }
+      created_at: string
+    }>
   }
   jobs: {
     normalized_data: { title: string; company: string }
@@ -73,7 +81,7 @@ export function CompanyDashboardClient({ user }: Props) {
         .then(data => { if (Array.isArray(data)) setJobs(data) })
         .finally(() => setJobsLoading(false))
     }
-    if (tab === 'candidates') {
+    if (tab === 'candidates' || tab === 'overview') {
       setCandidatesLoading(true)
       fetch('/api/companies')
         .then(r => r.json())
@@ -432,6 +440,13 @@ export function CompanyDashboardClient({ user }: Props) {
                         <p className="text-xs text-muted-foreground">
                           {candidate.candidates.location ?? 'Location unknown'} · Applied to {candidate.jobs.normalized_data.title}
                         </p>
+                        {candidate.candidates.resumes?.[0]?.parsed_data && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {candidate.candidates.resumes[0].parsed_data.skills?.slice(0, 5).join(', ')
+                              || candidate.candidates.resumes[0].parsed_data.summary
+                              || 'Resume profile available'}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         <span className="text-sm font-semibold text-primary">

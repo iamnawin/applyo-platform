@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
     candidate_id: candidate.id,
     job_id: app.job_id,
     status: action,
+    automation_status: action === 'approved' ? 'pending' : 'disabled',
   })
 
   if (action === 'approved') {
