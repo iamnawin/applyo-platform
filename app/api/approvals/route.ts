@@ -22,6 +22,7 @@ export async function GET() {
     .select('*, job:jobs(*)')
     .eq('candidate_id', candidate.id)
     .eq('status', 'pending')
+    .gte('match_score', 0.5)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

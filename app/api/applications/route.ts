@@ -18,6 +18,7 @@ export async function GET() {
     .select('*, job:jobs(*)')
     .eq('candidate_id', candidate.id)
     .neq('status', 'pending')
+    .gte('match_score', 0.5)
     .order('created_at', { ascending: false })
     .limit(100)
 
