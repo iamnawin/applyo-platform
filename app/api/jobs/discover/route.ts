@@ -42,18 +42,27 @@ export async function POST(req: NextRequest) {
     .map(experience => experience.title)
     .filter(Boolean)
 
+  const errors: string[] = []
+  let result = { jobsFound: 0, jobsStored: 0, errors }
+
   try {
-    const result = await discoverJobs(candidate.id, preferences, resumeSkills, resumeTitles)
+    result = await discoverJobs(candidate.id, preferences, resumeSkills, resumeTitles)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Job discovery failed'
+    console.error('[discover] Discovery error:', err)
+    result.errors.push(message)
+  }
 
-    // Trigger matching after discovery
+  try {
     const matches = await generateMatchesForCandidate(candidate.id)
-
     return NextResponse.json({ ...result, matchesCreated: matches.length })
   } catch (err) {
-    console.error('[discover] Error:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Job discovery failed' },
-      { status: 500 },
-    )
+    const message = err instanceof Error ? err.message : 'Failed to create approval queue'
+    console.error('[discover] Matching error:', err)
+    return NextResponse.json({
+      ...result,
+      matchesCreated: 0,
+      errors: [...result.errors, message],
+    })
   }
 }

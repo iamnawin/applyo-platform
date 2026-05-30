@@ -176,10 +176,11 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
           .catch(() => {})
         toast(`Found ${data.jobsFound} jobs, ${data.jobsStored} stored, ${data.matchesCreated ?? 0} queued!`, 'success')
       } else {
-        toast('Failed to discover jobs. Please try again.', 'error')
+        const data = await res.json().catch(() => ({}))
+        toast(data.error || 'Failed to discover jobs. Please try again.', 'error')
       }
-    } catch {
-      toast('Network error. Check your connection.', 'error')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Network error. Check your connection.', 'error')
     } finally {
       setDiscovering(false)
     }

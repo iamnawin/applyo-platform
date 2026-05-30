@@ -51,15 +51,17 @@ test('pickTopDiscoveredJobs caps selected jobs at target count', () => {
   assert.equal(pickTopDiscoveredJobs(jobs, 20).length, 20)
 })
 
-test('buildResumeTargetedFallbackJobs creates Salesforce search jobs from queries', () => {
+test('buildResumeTargetedFallbackJobs creates 20 Salesforce search jobs from queries', () => {
   const jobs = buildResumeTargetedFallbackJobs([
     { keyword: 'Salesforce Business Analyst', location: 'Bengaluru' },
-  ], 3)
+  ], 20)
 
-  assert.equal(jobs.length, 3)
+  assert.equal(jobs.length, 20)
   assert.equal(jobs[0].source, 'resume-fallback')
   assert.match(jobs[0].raw, /Salesforce Business Analyst/)
   assert.match(jobs[0].sourceUrl ?? '', /Salesforce/)
+  assert.ok(jobs.some(job => job.raw.includes('Salesforce Administrator')))
+  assert.ok(jobs.some(job => job.raw.includes('CRM Business Analyst')))
 })
 
 test('shouldUseImmediateFallback identifies resume-first Salesforce discovery', () => {

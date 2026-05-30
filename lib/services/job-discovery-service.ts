@@ -91,13 +91,14 @@ export async function discoverJobs(
   const queries = buildDiscoveryQueries(preferences, resumeSkills, resumeTitles)
   const discovered: DiscoveredJobCandidate[] = []
   const errors: string[] = []
+  const immediateFallback = shouldUseImmediateFallback(queries)
 
-  if (shouldUseImmediateFallback(queries)) {
+  if (immediateFallback) {
     discovered.push(...buildResumeTargetedFallbackJobs(queries, TARGET_JOB_COUNT))
-    errors.push('Created resume-targeted Salesforce/Business Analyst search jobs immediately.')
+    errors.push('Created resume-targeted Salesforce/Business Analyst search jobs without waiting for external scrapers.')
   }
 
-  if (process.env.APIFY_API_TOKEN) {
+  if (!immediateFallback && process.env.APIFY_API_TOKEN) {
     discovery:
     for (const query of queries.slice(0, 2)) {
       for (const platform of DISCOVERY_PLATFORMS) {
@@ -116,11 +117,11 @@ export async function discoverJobs(
         }
       }
     }
-  } else {
+  } else if (!immediateFallback) {
     errors.push('APIFY_API_TOKEN not configured. Using search fallback.')
   }
 
-  if (dedupeDiscoveredJobs(discovered).length < TARGET_JOB_COUNT) {
+  if (!immediateFallback && dedupeDiscoveredJobs(discovered).length < TARGET_JOB_COUNT) {
     const serperResult = await discoverJobsWithSerper(queries)
     discovered.push(...serperResult.items)
     errors.push(...serperResult.errors)

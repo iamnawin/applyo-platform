@@ -93,19 +93,61 @@ function searchUrl(keyword: string, location: string, source: 'linkedin' | 'inde
   return `https://www.indeed.com/jobs?q=${q}&l=${l}`
 }
 
+function fallbackTitleVariants(role: string): string[] {
+  const lowerRole = role.toLowerCase()
+  if (lowerRole.includes('salesforce') || lowerRole.includes('crm')) {
+    return [
+      role,
+      'Salesforce Business Analyst',
+      'Salesforce Administrator',
+      'Salesforce Functional Consultant',
+      'Salesforce Consultant',
+      'Salesforce CRM Analyst',
+      'CRM Business Analyst',
+      'Salesforce Implementation Analyst',
+      'Salesforce Product Analyst',
+      'Salesforce BA',
+      'Sales Cloud Business Analyst',
+      'Service Cloud Business Analyst',
+      'Salesforce Requirements Analyst',
+      'Salesforce UAT Analyst',
+      'Salesforce Healthcare Business Analyst',
+      'Salesforce Life Sciences Business Analyst',
+      'Salesforce Agile Business Analyst',
+      'Salesforce Business Systems Analyst',
+      'Salesforce Configuration Analyst',
+      'Salesforce Support Analyst',
+      'Junior Salesforce Business Analyst',
+    ]
+  }
+
+  if (lowerRole.includes('business analyst')) {
+    return [
+      role,
+      'Business Analyst',
+      'Business Systems Analyst',
+      'Product Business Analyst',
+      'Agile Business Analyst',
+      'Requirements Analyst',
+      'UAT Analyst',
+      'CRM Business Analyst',
+    ]
+  }
+
+  return [
+    role,
+    `${role} Consultant`,
+    `${role} Analyst`,
+  ]
+}
+
 export function buildResumeTargetedFallbackJobs(queries: DiscoveryQuery[], target = TARGET_JOB_COUNT): DiscoveredJobCandidate[] {
   const roles = uniqueClean(queries.map(query => query.keyword).filter(keyword => !keyword.toLowerCase().includes('software engineer')), 8)
   const location = queries[0]?.location || 'Remote'
   const items: DiscoveredJobCandidate[] = []
 
   for (const role of roles) {
-    const variants = [
-      role,
-      role.toLowerCase().includes('salesforce') ? 'Salesforce Functional Consultant' : `${role} Consultant`,
-      role.toLowerCase().includes('business analyst') ? 'CRM Business Analyst' : `${role} Analyst`,
-    ]
-
-    for (const title of uniqueClean(variants, 3)) {
+    for (const title of uniqueClean(fallbackTitleVariants(role), target)) {
       if (items.length >= target) break
       const source = items.length % 2 === 0 ? 'linkedin' : 'indeed'
       items.push({
