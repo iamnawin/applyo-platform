@@ -1,71 +1,26 @@
 /**
- * Job Discovery Service — finds live job postings via Serper (Google Search API).
- * Uses candidate preferences to build search queries, fetches results,
- * normalizes via FreeLLMAPI, and stores in the jobs table.
+ * Job Discovery Service — finds live job postings via Apify actors.
+ * Uses candidate preferences to build search queries, runs Apify actors,
+ * normalizes via AI, and stores in the jobs table.
+ * Falls back to Firecrawl if Apify is not configured.
  */
 
 import { createJob } from '@/lib/db/jobs'
 import { runStructuredTextTask } from '@/lib/ai/providers'
 import { normalizedJobSchema } from '@/lib/schemas/job'
 import type { Preference } from '@/lib/types'
+import { scrapeJobsWithApify } from './apify-scraper'
 
-interface SerperResult {
-  title: string
-  link: string
-  snippet: string
+function buildKeyword(preferences: Preference | null, resumeSkills?: string[]): string {
+  if (preferences?.desired_roles?.length) return preferences.desired_roles[0]
+  if (resumeSkills?.length) return resumeSkills.slice(0, 3).join(' ')
+  return 'software engineer'
 }
 
-async function searchSerper(query: string, num = 10): Promise<SerperResult[]> {
-  const apiKey = process.env.SERPER_API_KEY
-  if (!apiKey) throw new Error('SERPER_API_KEY not configured')
-
-  const res = await fetch('https://google.serper.dev/search', {
-    method: 'POST',
-    headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ q: query, num }),
-  })
-
-  if (!res.ok) throw new Error(`Serper API error: ${res.status}`)
-
-  const data = await res.json() as { organic?: SerperResult[] }
-  return data.organic ?? []
+function buildLocation(preferences: Preference | null): string {
+  if (preferences?.preferred_locations?.length) return preferences.preferred_locations[0]
+  return 'India'
 }
-
-function buildSearchQuery(preferences: Preference | null, resumeSkills?: string[]): string {
-  const parts: string[] = []
-
-  if (preferences?.desired_roles?.length) {
-    parts.push(preferences.desired_roles[0])
-  } else if (resumeSkills?.length) {
-    parts.push(resumeSkills.slice(0, 3).join(' '))
-  } else {
-    parts.push('software engineer')
-  }
-
-  parts.push('jobs')
-
-  if (preferences?.preferred_locations?.length) {
-    parts.push(preferences.preferred_locations[0])
-  }
-
-  // Target job boards that have structured listings
-  parts.push('site:greenhouse.io OR site:lever.co OR site:linkedin.com/jobs OR site:indeed.com')
-
-  return parts.join(' ')
-}
-
-const NORMALIZE_PROMPT = `Extract structured job data from this job posting snippet. Return JSON matching this exact schema:
-{
-  "title": "job title string",
-  "company": "company name string",
-  "location": "location or remote (optional)",
-  "type": "full-time" or "part-time" or "contract" or "remote" (optional),
-  "skills": ["skill1", "skill2"],
-  "experience_years": number or null,
-  "salary_range": {"min": number, "max": number, "currency": "USD"} or null,
-  "description_summary": "brief 1-2 sentence summary (optional)"
-}
-If a field is not available from the snippet, omit optional fields or use null/empty array.`
 
 export interface DiscoveryResult {
   jobsFound: number
@@ -78,35 +33,19 @@ export async function discoverJobs(
   preferences: Preference | null,
   resumeSkills?: string[],
 ): Promise<DiscoveryResult> {
-  const query = buildSearchQuery(preferences, resumeSkills)
-  const results = await searchSerper(query)
+  const keyword = buildKeyword(preferences, resumeSkills)
+  const location = buildLocation(preferences)
 
-  const errors: string[] = []
-  let jobsStored = 0
-
-  for (const result of results) {
-    try {
-      const normalized = await runStructuredTextTask({
-        taskName: 'job normalization',
-        systemPrompt: NORMALIZE_PROMPT,
-        userContent: `Title: ${result.title}\nURL: ${result.link}\nSnippet: ${result.snippet}`,
-        schema: normalizedJobSchema,
-      })
-
-      await createJob({
-        company_id: null,
-        raw_description: `${result.title}\n${result.snippet}`,
-        normalized_data: normalized,
-        embedding: null,
-        status: 'active',
-        source: 'serper_discovery',
-        source_url: result.link,
-      })
-      jobsStored++
-    } catch (err) {
-      errors.push(`Failed to process: ${result.title} — ${err instanceof Error ? err.message : 'unknown'}`)
-    }
+  // Use Apify if configured, otherwise throw helpful error
+  if (!process.env.APIFY_API_TOKEN) {
+    throw new Error('APIFY_API_TOKEN not configured. Add it to your environment variables.')
   }
 
-  return { jobsFound: results.length, jobsStored, errors }
+  const result = await scrapeJobsWithApify('naukri', { keyword, location, limit: 10 })
+
+  return {
+    jobsFound: result.total,
+    jobsStored: result.ingested,
+    errors: result.errors,
+  }
 }

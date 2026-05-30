@@ -10,6 +10,7 @@ import { PreferenceWizard } from '@/components/candidate/PreferenceWizard'
 import { ResumeProfileForm } from '@/components/candidate/ResumeProfileForm'
 import { ApprovalQueueCard } from '@/components/candidate/ApprovalQueueCard'
 import { ApplicationRow } from '@/components/candidate/ApplicationRow'
+import { JobDetailModal } from '@/components/candidate/JobDetailModal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -65,6 +66,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
 
   const [discovering, setDiscovering] = useState(false)
   const [discoverResult, setDiscoverResult] = useState<{ jobsFound: number; jobsStored: number } | null>(null)
+  const [selectedSuggestion, setSelectedSuggestion] = useState<SuggestedJob | null>(null)
 
   const loadQueue = useCallback(async () => {
     if (queueLoaded) return
@@ -373,7 +375,12 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 ) : (
                   <div className="space-y-3">
                     {suggestedJobs.slice(0, 4).map(suggestion => (
-                      <div key={suggestion.job.id} className="depth-surface rounded-[1.25rem] border border-white/8 p-4 hover:border-primary/20 transition-colors">
+                      <button
+                        key={suggestion.job.id}
+                        type="button"
+                        onClick={() => setSelectedSuggestion(suggestion)}
+                        className="w-full text-left depth-surface rounded-[1.25rem] border border-white/8 p-4 hover:border-primary/20 transition-colors cursor-pointer"
+                      >
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="font-medium">{suggestion.job.normalized_data.title}</p>
@@ -388,7 +395,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                             {suggestion.score}% fit
                           </Badge>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -591,6 +598,15 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
           {tab === 'chat' && <AIChatPanel />}
         </div>
       </main>
+
+      <JobDetailModal
+        job={selectedSuggestion?.job ?? null}
+        score={selectedSuggestion?.score}
+        reasons={selectedSuggestion?.reasons}
+        open={!!selectedSuggestion}
+        onOpenChange={(open) => { if (!open) setSelectedSuggestion(null) }}
+        onAddedToQueue={() => { setQueueLoaded(false); loadQueue() }}
+      />
     </div>
   )
 }
