@@ -67,6 +67,14 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
   const [discovering, setDiscovering] = useState(false)
   const [discoverResult, setDiscoverResult] = useState<{ jobsFound: number; jobsStored: number } | null>(null)
   const [selectedSuggestion, setSelectedSuggestion] = useState<SuggestedJob | null>(null)
+  const [autoDiscoverAttempted, setAutoDiscoverAttempted] = useState(false)
+  const latestResume = resumes[0]
+  const latestResumeReady = !latestResume?.processing_status || latestResume.processing_status === 'ready'
+  const latestResumeSub = !latestResume
+    ? 'Upload to get started'
+    : latestResumeReady
+      ? 'Parsed & ready'
+      : 'Stored, parsing pending'
 
   const loadQueue = useCallback(async (force = false) => {
     if (queueLoaded && !force) return
@@ -152,7 +160,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
     router.push('/login')
   }
 
-  async function handleDiscoverJobs() {
+  const handleDiscoverJobs = useCallback(async () => {
     setDiscovering(true)
     setDiscoverResult(null)
     try {
@@ -175,15 +183,22 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
     } finally {
       setDiscovering(false)
     }
-  }
+  }, [loadQueue, toast])
 
-  const latestResume = resumes[0]
-  const latestResumeReady = !latestResume?.processing_status || latestResume.processing_status === 'ready'
-  const latestResumeSub = !latestResume
-    ? 'Upload to get started'
-    : latestResumeReady
-      ? 'Parsed & ready'
-      : 'Stored, parsing pending'
+  useEffect(() => {
+    if (
+      tab === 'overview' &&
+      latestResumeReady &&
+      !suggestedLoading &&
+      suggestedJobs.length === 0 &&
+      queue.length === 0 &&
+      !discovering &&
+      !autoDiscoverAttempted
+    ) {
+      setAutoDiscoverAttempted(true)
+      handleDiscoverJobs()
+    }
+  }, [tab, latestResumeReady, suggestedLoading, suggestedJobs.length, queue.length, discovering, autoDiscoverAttempted, handleDiscoverJobs])
 
   return (
     <div className="flex min-h-screen bg-transparent overflow-hidden">

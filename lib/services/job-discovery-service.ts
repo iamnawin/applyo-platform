@@ -9,6 +9,7 @@ import type { Preference } from '@/lib/types'
 import { scrapeJobsWithApify } from './apify-scraper'
 import {
   buildDiscoveryQueries,
+  buildResumeTargetedFallbackJobs,
   dedupeDiscoveredJobs,
   pickTopDiscoveredJobs,
   TARGET_JOB_COUNT,
@@ -119,7 +120,11 @@ export async function discoverJobs(
     errors.push(...serperResult.errors)
   }
 
-  const selectedJobs = pickTopDiscoveredJobs(dedupeDiscoveredJobs(discovered), TARGET_JOB_COUNT)
+  let selectedJobs = pickTopDiscoveredJobs(dedupeDiscoveredJobs(discovered), TARGET_JOB_COUNT)
+  if (selectedJobs.length === 0) {
+    selectedJobs = buildResumeTargetedFallbackJobs(queries, TARGET_JOB_COUNT)
+    errors.push('No live jobs returned from external sources. Created resume-targeted search jobs.')
+  }
   let jobsStored = 0
 
   for (const job of selectedJobs) {

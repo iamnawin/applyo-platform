@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCandidateByUserId, upsertCandidate } from '@/lib/db/candidates'
-import { getPreferencesByCandidateId } from '@/lib/db/preferences'
+import { getPreferencesByCandidateId, upsertPreferences } from '@/lib/db/preferences'
 import { getResumesByCandidateId } from '@/lib/db/resumes'
 import { CandidateDashboardClient } from './CandidateDashboardClient'
+import { buildPreferencesFromResume } from '@/lib/services/preferences-service'
 
 export default async function CandidateDashboard() {
   const supabase = await createClient()
@@ -26,7 +27,15 @@ export default async function CandidateDashboard() {
   }
 
   const resumes = candidate ? await getResumesByCandidateId(candidate.id) : []
-  const preferences = candidate ? await getPreferencesByCandidateId(candidate.id) : null
+  let preferences = candidate ? await getPreferencesByCandidateId(candidate.id) : null
+  const latestReadyResume = resumes.find(resume => !resume.processing_status || resume.processing_status === 'ready')
+  if (candidate && !preferences && latestReadyResume?.parsed_data) {
+    try {
+      preferences = await upsertPreferences(buildPreferencesFromResume(latestReadyResume.parsed_data, candidate.id))
+    } catch (err) {
+      console.error('[CandidateDashboard] auto preferences failed:', err)
+    }
+  }
 
   return (
     <CandidateDashboardClient

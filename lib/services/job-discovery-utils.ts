@@ -78,3 +78,42 @@ export function dedupeDiscoveredJobs(jobs: DiscoveredJobCandidate[]): Discovered
 export function pickTopDiscoveredJobs(jobs: DiscoveredJobCandidate[], target = TARGET_JOB_COUNT): DiscoveredJobCandidate[] {
   return jobs.slice(0, target)
 }
+
+function searchUrl(keyword: string, location: string, source: 'linkedin' | 'indeed') {
+  const q = encodeURIComponent(keyword)
+  const l = encodeURIComponent(location)
+  if (source === 'linkedin') return `https://www.linkedin.com/jobs/search/?keywords=${q}&location=${l}`
+  return `https://www.indeed.com/jobs?q=${q}&l=${l}`
+}
+
+export function buildResumeTargetedFallbackJobs(queries: DiscoveryQuery[], target = TARGET_JOB_COUNT): DiscoveredJobCandidate[] {
+  const roles = uniqueClean(queries.map(query => query.keyword).filter(keyword => !keyword.toLowerCase().includes('software engineer')), 8)
+  const location = queries[0]?.location || 'Remote'
+  const items: DiscoveredJobCandidate[] = []
+
+  for (const role of roles) {
+    const variants = [
+      role,
+      role.toLowerCase().includes('salesforce') ? 'Salesforce Functional Consultant' : `${role} Consultant`,
+      role.toLowerCase().includes('business analyst') ? 'CRM Business Analyst' : `${role} Analyst`,
+    ]
+
+    for (const title of uniqueClean(variants, 3)) {
+      if (items.length >= target) break
+      const source = items.length % 2 === 0 ? 'linkedin' : 'indeed'
+      items.push({
+        source: 'resume-fallback',
+        sourceUrl: searchUrl(title, location, source),
+        raw: [
+          title,
+          source === 'linkedin' ? 'LinkedIn Jobs Search' : 'Indeed Jobs Search',
+          location,
+          `Resume-targeted ${title} opportunities. Open the source link to review current postings before applying.`,
+          `Skills: Salesforce, CRM, Business Analysis, Requirements Gathering, User Stories, UAT, Jira, Agile`,
+        ].join('\n'),
+      })
+    }
+  }
+
+  return items
+}
