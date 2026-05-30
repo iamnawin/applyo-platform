@@ -206,3 +206,45 @@ test('dedupeSuggestedJobs collapses legacy fallback search duplicates across URL
   assert.equal(suggestions.length, 1)
   assert.equal(suggestions[0].job.normalized_data.title, 'Salesforce Business Analyst')
 })
+
+test('dedupeSuggestedJobs canonicalizes direct URLs before comparing duplicates', () => {
+  const base = {
+    company_id: null,
+    raw_description: 'Salesforce Business Analyst direct posting',
+    normalized_data: {
+      title: 'Salesforce Business Analyst',
+      company: 'Acme',
+      location: 'India',
+      type: undefined,
+      skills: [],
+      salary_range: null,
+    },
+    embedding: null,
+    status: 'active',
+    source: 'linkedin',
+    created_at: '',
+  } as any
+
+  const suggestions = dedupeSuggestedJobs([
+    {
+      job: {
+        ...base,
+        id: 'first',
+        source_url: 'https://www.linkedin.com/jobs/view/123?trk=public_jobs_topcard-title&utm_source=test',
+      },
+      score: 88,
+      reasons: ['A'],
+    },
+    {
+      job: {
+        ...base,
+        id: 'second',
+        source_url: 'https://www.linkedin.com/jobs/view/123/',
+      },
+      score: 87,
+      reasons: ['B'],
+    },
+  ])
+
+  assert.deepEqual(suggestions.map(suggestion => suggestion.job.id), ['first'])
+})

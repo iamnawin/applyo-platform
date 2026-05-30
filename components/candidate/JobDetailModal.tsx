@@ -32,7 +32,11 @@ export function JobDetailModal({ job, score, reasons, open, onOpenChange, onAdde
       const res = await fetch('/api/approvals', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: job!.id }),
+        body: JSON.stringify({
+          job_id: job!.id,
+          match_score: score == null ? undefined : score / 100,
+          match_reasons: reasons ?? undefined,
+        }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))

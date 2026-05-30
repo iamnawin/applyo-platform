@@ -160,7 +160,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
     if (queue.length === 0) return
     setApprovingAll(true)
     const approvedIds = new Set<string>()
-    let manual = 0
+    let assisted = 0
     let automated = 0
     let failed = 0
 
@@ -171,7 +171,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
       for (const result of results) {
         if (result.status === 'fulfilled') {
           approvedIds.add(result.value.id)
-          if (result.value.automationStatus === 'manual') manual++
+          if (result.value.automationStatus === 'manual') assisted++
           else automated++
         } else {
           failed++
@@ -185,7 +185,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
 
     const parts = [
       `${approvedIds.size} approved`,
-      manual > 0 ? `${manual} manual` : null,
+      assisted > 0 ? `${assisted} moved to assisted apply` : null,
       automated > 0 ? `${automated} automation started` : null,
       failed > 0 ? `${failed} failed` : null,
     ].filter(Boolean)
@@ -606,7 +606,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
                   <ListChecks className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No jobs pending approval</p>
-                  <p className="text-sm mt-1">Approved search jobs move to manual apply. Direct job posts can run automation when browser support is configured.</p>
+                  <p className="text-sm mt-1">Assisted apply jobs stay here for you to finish. Direct job posts can run automation when browser support is configured.</p>
                 </div>
               )}
               {!queueLoading && queue.length > 0 && (
@@ -648,7 +648,13 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
               {!appsLoading && applications.length > 0 && (
                 <div className="space-y-3">
                   {applications.map(app => (
-                    <ApplicationRow key={app.id} application={app} />
+                    <ApplicationRow
+                      key={app.id}
+                      application={app}
+                      onUpdated={(updated) => {
+                        setApplications(prev => prev.map(item => item.id === app.id ? { ...item, ...updated } : item))
+                      }}
+                    />
                   ))}
                 </div>
               )}

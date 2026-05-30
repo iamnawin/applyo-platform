@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCandidateByUserId } from '@/lib/db/candidates'
 import { createServerClient } from '@/lib/db/client'
+import { dedupeApplicationsForDisplay, enrichApplicationForDisplay } from '@/lib/services/application-display'
 
 // GET /api/applications — application status tracker for current candidate
 export async function GET() {
@@ -23,5 +24,11 @@ export async function GET() {
     .limit(100)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data ?? [])
+
+  const rows = dedupeApplicationsForDisplay((data ?? []) as any)
+    .map(application => enrichApplicationForDisplay(application as any, {
+      browserConfigured: Boolean(process.env.BROWSER_WS_ENDPOINT),
+    }))
+
+  return NextResponse.json(rows)
 }

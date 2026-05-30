@@ -26,7 +26,8 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
 
   const job = application.job
   const normalized = job.normalized_data
-  const manualOnly = isSearchBackedJob(job)
+  const manualOnly = application.is_auto_apply_ready === false || isSearchBackedJob(job)
+  const manualReason = application.manual_reason ?? 'Applyo needs you to finish this one on the job portal.'
 
   async function handleAction(action: 'approved' | 'skipped') {
     setLoading(action)
@@ -131,7 +132,13 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
 
         {manualOnly && (
           <div className="mt-4 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
-            This is a search result page. Approving moves it to manual apply; it is not a confirmed portal submission.
+            {manualReason} Moving it forward creates an assisted apply task, not a confirmed portal submission.
+          </div>
+        )}
+
+        {!manualOnly && (
+          <div className="mt-4 rounded-lg border border-green-400/30 bg-green-400/10 px-3 py-2 text-sm text-green-100">
+            Auto-apply ready. Approval starts browser automation and this job will move to Applying.
           </div>
         )}
 
@@ -221,7 +228,7 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
           disabled={loading !== null}
         >
           {loading === 'approved' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-          {manualOnly ? 'Move to Manual Apply' : 'Approve'}
+          {manualOnly ? 'Move to Assisted Apply' : 'Approve Auto-Apply'}
         </Button>
       </CardFooter>
     </Card>

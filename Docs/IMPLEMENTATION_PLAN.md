@@ -117,3 +117,56 @@ SERPER_API_KEY=your-serper-key
 5. Task 6 (auto-apply)
 6. Task 7 (AI chat route)
 7. Task 8 (final verification)
+
+---
+
+# Applyo Hybrid Autopilot Plan
+
+**Added:** 2026-05-30
+**Status:** Accepted for implementation
+**Goal:** Make Applyo's v1 differentiator a truthful hybrid autopilot: auto-apply where direct portal submission is technically possible, and provide a strong assisted-apply workspace everywhere else.
+
+## Summary
+
+Applyo should auto-apply only when it has a real direct job/application URL and browser automation is available. Search-result URLs such as LinkedIn `/jobs/search` or Indeed `/jobs?` are discovery links, not submission targets. Those jobs must move to assisted apply with source link, cover letter, checklist, and tracking. The app must never imply a job was submitted unless automation confirms submission or the candidate explicitly marks it applied.
+
+## Key Changes
+
+- Add clear user-facing states: `Auto-apply ready`, `Applying`, `Submitted`, `Needs manual apply`, `Failed`, and `Skipped`.
+- Keep only `50%+` matches in candidate suggestions, approval queue, and application tracking.
+- Deduplicate suggestions by canonical direct URL first, then normalized title/company/location; for fallback/search jobs dedupe by normalized role/location/source family.
+- Exclude already handled jobs for the candidate from future suggestions, including pending, skipped, approved, manual, failed, and submitted applications.
+- Prefer direct posting URLs from Apify/Serper/browser scraping over search fallback jobs.
+- Change approval behavior:
+  - Direct auto-ready jobs start automation and become `Applying`.
+  - Search/manual-only jobs become `Needs manual apply`.
+  - `Approve All` reports automation started, assisted apply, and failed counts separately.
+- Improve the Applications page for manual items:
+  - `Open Source`
+  - `Generate Cover Letter`
+  - `Mark Applied`
+  - show automation logs/manual reason for manual and failed jobs.
+- Keep AI cover letter generation when available and deterministic fallback when unavailable.
+- Document production limitation: real portal-side automation on Vercel requires a configured remote browser endpoint via `BROWSER_WS_ENDPOINT`.
+
+## API / Data Changes
+
+- Normalize application display payloads to expose:
+  - `automation_status`
+  - `automation_logs`
+  - `manual_reason`
+  - `is_auto_apply_ready`
+  - `source_url`
+- Add a candidate-owned manual completion action:
+  - `POST /api/applications/[id]/mark-applied`
+  - only the authenticated owner candidate can call it
+  - sets `status = applied` and keeps `automation_status = manual`
+- Do not add destructive migrations. Keep existing backward-compatible handling for missing optional automation columns.
+
+## Acceptance Criteria
+
+- Salesforce Business Analyst resumes produce relevant, deduped `50%+` suggestions.
+- Search fallback jobs clearly show assisted/manual apply language.
+- Direct job URLs show auto-apply readiness only when browser automation is configured.
+- `Applied` appears only after confirmed automation submission or explicit user mark-applied.
+- Applications page tells the user exactly what happened: submitted, applying, manual action needed, skipped, or failed.

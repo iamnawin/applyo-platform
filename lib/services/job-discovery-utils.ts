@@ -79,6 +79,19 @@ export function pickTopDiscoveredJobs(jobs: DiscoveredJobCandidate[], target = T
   return jobs.slice(0, target)
 }
 
+function isSearchFallbackJob(job: DiscoveredJobCandidate): boolean {
+  const url = job.sourceUrl?.toLowerCase() ?? ''
+  return (
+    job.source === 'resume-fallback' ||
+    url.includes('/jobs/search') ||
+    url.includes('indeed.com/jobs?')
+  )
+}
+
+export function prioritizeDirectDiscoveredJobs(jobs: DiscoveredJobCandidate[]): DiscoveredJobCandidate[] {
+  return [...jobs].sort((a, b) => Number(isSearchFallbackJob(a)) - Number(isSearchFallbackJob(b)))
+}
+
 export function shouldUseImmediateFallback(queries: DiscoveryQuery[]): boolean {
   return queries.some(query => {
     const keyword = query.keyword.toLowerCase()

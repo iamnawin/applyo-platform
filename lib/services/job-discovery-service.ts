@@ -12,13 +12,14 @@ import {
   buildResumeTargetedFallbackJobs,
   dedupeDiscoveredJobs,
   pickTopDiscoveredJobs,
+  prioritizeDirectDiscoveredJobs,
   shouldUseImmediateFallback,
   TARGET_JOB_COUNT,
   type DiscoveredJobCandidate,
 } from './job-discovery-utils'
 
 const DISCOVERY_PLATFORMS = ['linkedin', 'indeed', 'naukri'] as const
-export { buildDiscoveryQueries, dedupeDiscoveredJobs, pickTopDiscoveredJobs }
+export { buildDiscoveryQueries, dedupeDiscoveredJobs, pickTopDiscoveredJobs, prioritizeDirectDiscoveredJobs }
 const APIFY_ACTOR_TIMEOUT_MS = 4000
 
 export interface DiscoveryResult {
@@ -93,11 +94,6 @@ export async function discoverJobs(
   const errors: string[] = []
   const immediateFallback = shouldUseImmediateFallback(queries)
 
-  if (immediateFallback) {
-    discovered.push(...buildResumeTargetedFallbackJobs(queries, TARGET_JOB_COUNT))
-    errors.push('Created resume-targeted Salesforce/Business Analyst search jobs without waiting for external scrapers.')
-  }
-
   if (!immediateFallback && process.env.APIFY_API_TOKEN) {
     discovery:
     for (const query of queries.slice(0, 2)) {
@@ -119,19 +115,23 @@ export async function discoverJobs(
     }
   } else if (!immediateFallback) {
     errors.push('APIFY_API_TOKEN not configured. Using search fallback.')
+  } else {
+    errors.push('Skipped slow external scrapers for resume-first Salesforce/Business Analyst discovery.')
   }
 
-  if (!immediateFallback && dedupeDiscoveredJobs(discovered).length < TARGET_JOB_COUNT) {
+  if (dedupeDiscoveredJobs(discovered).length < TARGET_JOB_COUNT) {
     const serperResult = await discoverJobsWithSerper(queries)
     discovered.push(...serperResult.items)
     errors.push(...serperResult.errors)
   }
 
-  let selectedJobs = pickTopDiscoveredJobs(dedupeDiscoveredJobs(discovered), TARGET_JOB_COUNT)
-  if (selectedJobs.length === 0) {
-    selectedJobs = buildResumeTargetedFallbackJobs(queries, TARGET_JOB_COUNT)
-    errors.push('No live jobs returned from external sources. Created resume-targeted search jobs.')
+  if (dedupeDiscoveredJobs(discovered).length < TARGET_JOB_COUNT) {
+    discovered.push(...buildResumeTargetedFallbackJobs(queries, TARGET_JOB_COUNT))
+    errors.push('Created resume-targeted assisted-apply search jobs to keep the queue usable.')
   }
+
+  let selectedJobs = pickTopDiscoveredJobs(prioritizeDirectDiscoveredJobs(dedupeDiscoveredJobs(discovered)), TARGET_JOB_COUNT)
+  if (selectedJobs.length === 0) selectedJobs = buildResumeTargetedFallbackJobs(queries, TARGET_JOB_COUNT)
   let jobsStored = 0
 
   for (const job of selectedJobs) {

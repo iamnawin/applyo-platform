@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/db/client'
 import { logToApplication, updateApplicationAutomationStatus, upsertApplication } from '@/lib/db/applications'
 import { triggerApply } from '@/lib/automation'
 import { getManualApplyReason } from '@/lib/automation/apply-eligibility'
+import { dedupeApplicationsForDisplay, enrichApplicationForDisplay } from '@/lib/services/application-display'
 import { z } from 'zod'
 
 // GET /api/approvals — list pending applications for current user
@@ -26,7 +27,13 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data ?? [])
+
+  const rows = dedupeApplicationsForDisplay((data ?? []) as any)
+    .map(application => enrichApplicationForDisplay(application as any, {
+      browserConfigured: Boolean(process.env.BROWSER_WS_ENDPOINT),
+    }))
+
+  return NextResponse.json(rows)
 }
 
 const actionSchema = z.object({
@@ -100,12 +107,14 @@ export async function PUT(req: NextRequest) {
   const candidate = await getCandidateByUserId(user.id)
   if (!candidate) return NextResponse.json({ error: 'Candidate not found' }, { status: 404 })
 
-  const { job_id } = await req.json()
+  const { job_id, match_score, match_reasons } = await req.json()
   if (!job_id) return NextResponse.json({ error: 'job_id is required' }, { status: 400 })
 
   const app = await upsertApplication({
     candidate_id: candidate.id,
     job_id,
+    match_score: typeof match_score === 'number' ? Math.max(0, Math.min(1, match_score)) : undefined,
+    match_reasons: Array.isArray(match_reasons) ? match_reasons : undefined,
     status: 'pending',
   })
 

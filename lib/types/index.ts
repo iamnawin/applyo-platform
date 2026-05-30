@@ -47,6 +47,9 @@ export interface Application {
   created_at: string
   job?: Job // Added relation
   candidate?: Candidate & { resumes?: Resume[] } // Added relation
+  is_auto_apply_ready?: boolean
+  manual_reason?: string | null
+  source_url?: string | null
 }
 
 // Placeholder — replace with generated Supabase types

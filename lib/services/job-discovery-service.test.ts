@@ -7,6 +7,7 @@ import {
   buildResumeTargetedFallbackJobs,
   dedupeDiscoveredJobs,
   pickTopDiscoveredJobs,
+  prioritizeDirectDiscoveredJobs,
 } from './job-discovery-utils.ts'
 
 test('buildDiscoveryQueries uses resume titles, skills, preferences, and locations', () => {
@@ -73,4 +74,21 @@ test('shouldUseImmediateFallback identifies resume-first Salesforce discovery', 
 
   assert.equal(shouldUseImmediateFallback(queries), true)
   assert.equal(shouldUseImmediateFallback([{ keyword: 'software engineer', location: 'India' }]), false)
+})
+
+test('prioritizeDirectDiscoveredJobs ranks direct postings before search fallback jobs', () => {
+  const jobs = prioritizeDirectDiscoveredJobs([
+    {
+      source: 'resume-fallback',
+      sourceUrl: 'https://www.linkedin.com/jobs/search/?keywords=Salesforce',
+      raw: 'Salesforce Business Analyst\nLinkedIn Jobs Search\nIndia',
+    },
+    {
+      source: 'linkedin',
+      sourceUrl: 'https://www.linkedin.com/jobs/view/123',
+      raw: 'Salesforce Business Analyst\nAcme\nIndia',
+    },
+  ])
+
+  assert.equal(jobs[0].sourceUrl, 'https://www.linkedin.com/jobs/view/123')
 })

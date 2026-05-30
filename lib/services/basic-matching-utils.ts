@@ -93,6 +93,27 @@ function overlapCount(source: string[], targetText: string): number {
   return uniqueClean(source).filter(value => normalizedTarget.includes(value.toLowerCase())).length
 }
 
+function canonicalSourceUrl(sourceUrl: string): string {
+  try {
+    const url = new URL(sourceUrl)
+    const host = url.hostname.toLowerCase().replace(/^www\./, '')
+    const path = url.pathname.toLowerCase().replace(/\/+$/, '')
+
+    if (host.includes('linkedin.com') && path.includes('/jobs/view/')) {
+      return `url:${host}${path}`
+    }
+
+    if (host.includes('indeed.') && path.includes('/viewjob')) {
+      const jobKey = url.searchParams.get('jk')
+      return jobKey ? `url:${host}${path}?jk=${jobKey.toLowerCase()}` : `url:${host}${path}`
+    }
+
+    return `url:${host}${path}${url.search ? url.search.toLowerCase() : ''}`
+  } catch {
+    return `url:${sourceUrl.trim().toLowerCase().replace(/\/+$/, '')}`
+  }
+}
+
 export function resumeRoleSignals(resume: ParsedResume, preferences: Preference | null): string[] {
   return uniqueClean([
     ...(preferences?.desired_job_titles ?? []),
@@ -164,7 +185,7 @@ function suggestionDedupeKey(job: Job): string {
   }
 
   const sourceUrl = job.source_url?.trim().toLowerCase()
-  if (sourceUrl) return `url:${sourceUrl}`
+  if (sourceUrl) return canonicalSourceUrl(sourceUrl)
 
   return [
     job.normalized_data.title,
