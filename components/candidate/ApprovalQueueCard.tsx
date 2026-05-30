@@ -8,6 +8,11 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { ScoreCard } from './ScoreCard'
 import type { Application, Job } from '@/lib/types'
 
+function isSearchBackedJob(job: Job): boolean {
+  const url = job.source_url?.toLowerCase() ?? ''
+  return job.source === 'resume-fallback' || url.includes('/jobs/search') || url.includes('indeed.com/jobs?')
+}
+
 interface Props {
   application: Application & { job: Job }
   onAction: (id: string, action: 'approved' | 'skipped') => void
@@ -21,6 +26,7 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
 
   const job = application.job
   const normalized = job.normalized_data
+  const manualOnly = isSearchBackedJob(job)
 
   async function handleAction(action: 'approved' | 'skipped') {
     setLoading(action)
@@ -38,7 +44,8 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error('Action failed')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Action failed')
       onAction(application.id, action)
     } catch {
       // show error in production
@@ -121,6 +128,12 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
             )}
           </div>
         </div>
+
+        {manualOnly && (
+          <div className="mt-4 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+            This is a search result page. Approving moves it to manual apply; it is not a confirmed portal submission.
+          </div>
+        )}
 
         {normalized.salary_range && (
           <p className="mt-2 text-sm font-medium text-green-700">
@@ -208,7 +221,7 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
           disabled={loading !== null}
         >
           {loading === 'approved' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-          Approve
+          {manualOnly ? 'Move to Manual Apply' : 'Approve'}
         </Button>
       </CardFooter>
     </Card>

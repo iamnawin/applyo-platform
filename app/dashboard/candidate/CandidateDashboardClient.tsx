@@ -135,23 +135,61 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
     setQueue(prev => prev.filter(a => a.id !== id))
   }
 
+  async function approveApplication(app: ApplicationWithJob) {
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 15_000)
+    try {
+      const res = await fetch('/api/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ application_id: app.id, action: 'approved' }),
+        signal: controller.signal,
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Approval failed')
+      return {
+        id: app.id,
+        automationStatus: data.automation_status as string | undefined,
+      }
+    } finally {
+      window.clearTimeout(timeout)
+    }
+  }
+
   async function handleApproveAll() {
     if (queue.length === 0) return
     setApprovingAll(true)
-    let approved = 0
-    for (const app of queue) {
-      try {
-        const res = await fetch('/api/approvals', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ application_id: app.id, action: 'approved' }),
-        })
-        if (res.ok) approved++
-      } catch { /* continue with next */ }
+    const approvedIds = new Set<string>()
+    let manual = 0
+    let automated = 0
+    let failed = 0
+
+    const batchSize = 6
+    for (let index = 0; index < queue.length; index += batchSize) {
+      const batch = queue.slice(index, index + batchSize)
+      const results = await Promise.allSettled(batch.map(approveApplication))
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          approvedIds.add(result.value.id)
+          if (result.value.automationStatus === 'manual') manual++
+          else automated++
+        } else {
+          failed++
+        }
+      }
     }
-    setQueue([])
+
+    setQueue(prev => prev.filter(app => !approvedIds.has(app.id)))
+    setAppsLoaded(false)
     setApprovingAll(false)
-    toast(`Approved ${approved} job${approved > 1 ? 's' : ''}! Applyo is now applying on your behalf.`, 'success')
+
+    const parts = [
+      `${approvedIds.size} approved`,
+      manual > 0 ? `${manual} manual` : null,
+      automated > 0 ? `${automated} automation started` : null,
+      failed > 0 ? `${failed} failed` : null,
+    ].filter(Boolean)
+    toast(parts.join(', '), failed > 0 ? 'error' : 'success')
   }
 
   async function handleSignOut() {
@@ -568,7 +606,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
                   <ListChecks className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No jobs pending approval</p>
-                  <p className="text-sm mt-1">Upload your resume and Applyo will find matching jobs for you.</p>
+                  <p className="text-sm mt-1">Approved search jobs move to manual apply. Direct job posts can run automation when browser support is configured.</p>
                 </div>
               )}
               {!queueLoading && queue.length > 0 && (
@@ -585,7 +623,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">Applications</h1>
-                <p className="text-muted-foreground mt-1">Track every job Applyo has applied to on your behalf</p>
+                <p className="text-muted-foreground mt-1">Track approved jobs, manual apply items, and confirmed automation submissions</p>
               </div>
               {appsLoading && (
                 <div className="space-y-3">
@@ -604,7 +642,7 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                 <div className="depth-surface rounded-[1.4rem] border border-dashed border-white/10 p-12 text-center text-muted-foreground">
                   <History className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No applications yet</p>
-                  <p className="text-sm mt-1">Approve jobs in the queue and Applyo will apply for you.</p>
+                  <p className="text-sm mt-1">Approve direct job posts for automation, or use source links for manual search jobs.</p>
                 </div>
               )}
               {!appsLoading && applications.length > 0 && (
