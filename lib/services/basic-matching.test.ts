@@ -69,3 +69,50 @@ test('scoreJobForResume rejects unrelated engineering jobs', () => {
 
   assert.equal(score.score, 0)
 })
+
+test('scoreJobForResume accepts Salesforce fallback jobs when preferences are missing', () => {
+  const score = scoreJobForResume(
+    {
+      name: 'SRI VANI NEMANI',
+      summary: 'Salesforce Implementation & Administration, Requirements Gathering & User Stories, Healthcare & Life Sciences Domain, Agile / Iterative Delivery',
+      skills: [
+        'Salesforce Implementation & Administration',
+        'Requirements Gathering & User Stories',
+        'Healthcare & Life Sciences Domain',
+        'Agile / Iterative Delivery',
+      ],
+      experience: [],
+      education: [],
+      languages: [],
+    } as any,
+    null,
+    {
+      id: '3',
+      company_id: null,
+      raw_description: [
+        'Salesforce Functional Consultant',
+        'LinkedIn Jobs Search',
+        'India',
+        'Resume-targeted Salesforce Functional Consultant opportunities.',
+        'Skills: Salesforce, CRM, Business Analysis, Requirements Gathering, User Stories, UAT, Jira, Agile',
+      ].join('\n'),
+      normalized_data: {
+        title: 'Salesforce Functional Consultant',
+        company: 'LinkedIn Jobs Search',
+        location: 'India',
+        type: undefined,
+        skills: [],
+        salary_range: null,
+      },
+      embedding: null,
+      status: 'active',
+      source: 'resume-fallback',
+      source_url: 'https://www.linkedin.com/jobs/search/?keywords=Salesforce',
+      created_at: '',
+    },
+    null,
+  )
+
+  assert.ok(score.score >= 50)
+  assert.ok(score.reasons.includes('Matches resume role'))
+})

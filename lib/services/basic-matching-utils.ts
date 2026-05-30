@@ -31,6 +31,16 @@ function includesAny(text: string, values: string[]) {
   return values.some(value => normalized.includes(value.toLowerCase()))
 }
 
+function hasSalesforceResumeSignal(resume: ParsedResume): boolean {
+  const resumeText = [
+    resume.summary,
+    ...(resume.skills ?? []),
+    ...(resume.experience ?? []).flatMap(experience => [experience.title, experience.description]),
+  ].filter(Boolean).join(' ').toLowerCase()
+
+  return resumeText.includes('salesforce')
+}
+
 function overlapCount(source: string[], targetText: string): number {
   const normalizedTarget = targetText.toLowerCase()
   return uniqueClean(source).filter(value => normalizedTarget.includes(value.toLowerCase())).length
@@ -59,7 +69,12 @@ export function scoreJobForResume(
   const skillMatches = overlapCount(resume.skills ?? [], jobText)
 
   if (roleSignals.length && includesAny(jobText, roleSignals)) {
-    score += 45
+    score += 55
+    reasons.push('Matches resume role')
+  }
+
+  if (score === 0 && hasSalesforceResumeSignal(resume) && jobText.includes('salesforce')) {
+    score += 55
     reasons.push('Matches resume role')
   }
 
