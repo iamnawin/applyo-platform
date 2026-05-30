@@ -26,6 +26,17 @@ export async function listJobsByCompany(companyId: string): Promise<Job[]> {
 
 export async function createJob(job: Omit<Job, 'id' | 'created_at'>): Promise<Job> {
   const db = createServerClient()
+  if (job.source_url) {
+    const { data: existing, error: existingError } = await db
+      .from('jobs')
+      .select('*')
+      .eq('source_url', job.source_url)
+      .limit(1)
+      .maybeSingle()
+
+    if (!existingError && existing) return existing as Job
+  }
+
   const { data, error } = await db.from('jobs').insert(job).select().single()
   if (error) throw error
   return data as Job

@@ -5,6 +5,12 @@ export interface SuggestedJobScore {
   reasons: string[]
 }
 
+export interface SuggestedJobLike {
+  job: Job
+  score: number
+  reasons: string[]
+}
+
 function normalize(value: string | null | undefined): string {
   return (value ?? '').toLowerCase()
 }
@@ -103,4 +109,39 @@ export function scoreJobForResume(
     score: Math.min(score, 100),
     reasons,
   }
+}
+
+function suggestionDedupeKey(job: Job): string {
+  const sourceUrl = job.source_url?.trim().toLowerCase()
+  if (sourceUrl) return `url:${sourceUrl}`
+
+  return [
+    job.normalized_data.title,
+    job.normalized_data.company,
+    job.normalized_data.location,
+  ]
+    .map(value => value?.trim().toLowerCase())
+    .filter(Boolean)
+    .join('|')
+}
+
+export function dedupeSuggestedJobs<T extends SuggestedJobLike>(
+  suggestions: T[],
+  handledJobIds = new Set<string>(),
+): T[] {
+  const seen = new Set<string>()
+  const result: T[] = []
+
+  for (const suggestion of suggestions) {
+    const key = suggestionDedupeKey(suggestion.job)
+    if (handledJobIds.has(suggestion.job.id)) {
+      if (key) seen.add(key)
+      continue
+    }
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    result.push(suggestion)
+  }
+
+  return result
 }

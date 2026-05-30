@@ -101,6 +101,10 @@ export async function updateApplicationAutomationStatus(
   const db = createServerClient()
   const { error } = await db.from('applications').update({ automation_status }).eq('id', applicationId)
   if (error) {
+    if (error.message?.toLowerCase().includes('automation_status')) {
+      console.warn(`Skipping automation status update for ${applicationId}: column is missing`)
+      return
+    }
     console.error(`Failed to update automation status for ${applicationId}:`, error)
     throw error
   }

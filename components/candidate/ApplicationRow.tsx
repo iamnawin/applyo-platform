@@ -1,5 +1,6 @@
 import { Building2, MapPin, Clock, ExternalLink } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { getApplicationDisplayStatus } from '@/lib/automation/apply-eligibility'
 import type { Application, Job } from '@/lib/types'
 
 const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline'> = {
@@ -38,9 +39,7 @@ export function ApplicationRow({ application }: Props) {
   const appliedAt = application.applied_at
     ? new Date(application.applied_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
     : null
-  const displayStatus = application.automation_status && application.automation_status !== 'disabled'
-    ? application.automation_status
-    : application.status
+  const displayStatus = getApplicationDisplayStatus(application)
 
   return (
     <div className="flex items-center gap-4 p-4 border border-white/8 rounded-xl depth-surface hover:border-primary/20 transition-colors">

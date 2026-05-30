@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { scoreJobForResume } from './basic-matching-utils.ts'
+import { dedupeSuggestedJobs, scoreJobForResume } from './basic-matching-utils.ts'
 
 const salesforceResume = {
   name: 'Test Candidate',
@@ -115,4 +115,41 @@ test('scoreJobForResume accepts Salesforce fallback jobs when preferences are mi
 
   assert.ok(score.score >= 50)
   assert.ok(score.reasons.includes('Matches resume role'))
+})
+
+test('dedupeSuggestedJobs removes repeated jobs and handled application jobs', () => {
+  const baseJob = {
+    company_id: null,
+    raw_description: 'Salesforce Business Analyst',
+    normalized_data: {
+      title: 'Salesforce Business Analyst',
+      company: 'LinkedIn Jobs Search',
+      location: 'India',
+      type: undefined,
+      skills: [],
+      salary_range: null,
+    },
+    embedding: null,
+    status: 'active',
+    source: 'resume-fallback',
+    source_url: 'https://www.linkedin.com/jobs/search/?keywords=Salesforce',
+    created_at: '',
+  } as any
+
+  const suggestions = dedupeSuggestedJobs([
+    { job: { ...baseJob, id: 'handled' }, score: 90, reasons: ['A'] },
+    { job: { ...baseJob, id: 'duplicate' }, score: 88, reasons: ['B'] },
+    {
+      job: {
+        ...baseJob,
+        id: 'fresh',
+        source_url: 'https://www.indeed.com/jobs?q=Salesforce',
+        normalized_data: { ...baseJob.normalized_data, company: 'Indeed Jobs Search' },
+      },
+      score: 80,
+      reasons: ['C'],
+    },
+  ], new Set(['handled']))
+
+  assert.deepEqual(suggestions.map(suggestion => suggestion.job.id), ['fresh'])
 })

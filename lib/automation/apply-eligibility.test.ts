@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { getManualApplyReason } from './apply-eligibility.ts'
+import { getApplicationDisplayStatus, getManualApplyReason } from './apply-eligibility.ts'
 
 test('getManualApplyReason requires a browser endpoint for automation', () => {
   assert.equal(
@@ -33,5 +33,19 @@ test('getManualApplyReason allows real job URLs when browser is configured', () 
       source: 'linkedin',
     }),
     null,
+  )
+})
+
+test('getApplicationDisplayStatus shows old queued fallback jobs as manual', () => {
+  assert.equal(
+    getApplicationDisplayStatus({
+      status: 'approved',
+      automation_status: 'pending',
+      job: {
+        source: 'resume-fallback',
+        source_url: 'https://www.indeed.com/jobs?q=Salesforce',
+      },
+    }),
+    'manual',
   )
 })

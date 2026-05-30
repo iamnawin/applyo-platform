@@ -3,7 +3,7 @@ import { listJobs } from '@/lib/db/jobs'
 import { getPreferencesByCandidateId } from '@/lib/db/preferences'
 import type { Job } from '@/lib/types'
 import { getLatestResumeByCandidateId } from '@/lib/db/resumes'
-import { scoreJobForResume } from './basic-matching-utils'
+import { dedupeSuggestedJobs, scoreJobForResume } from './basic-matching-utils'
 export { scoreJobForResume }
 
 export interface SuggestedJob {
@@ -32,8 +32,13 @@ export async function getSuggestedJobsForCandidate(candidateId: string, limit = 
   if (!resume || (resume.processing_status && resume.processing_status !== 'ready')) return []
 
   const jobs = await listJobs(200)
+  const { data: applications } = await db
+    .from('applications')
+    .select('job_id')
+    .eq('candidate_id', candidate.id)
+  const handledJobIds = new Set((applications ?? []).map(application => application.job_id).filter(Boolean))
 
-  return jobs
+  const suggestions = jobs
     .filter(job => {
       if (!preferences?.blacklisted_companies?.length) return true
       return !preferences.blacklisted_companies.some(company =>
@@ -50,5 +55,7 @@ export async function getSuggestedJobsForCandidate(candidateId: string, limit = 
     })
     .filter(suggestion => suggestion.score >= 50)
     .sort((a, b) => b.score - a.score)
+
+  return dedupeSuggestedJobs(suggestions, handledJobIds)
     .slice(0, limit)
 }

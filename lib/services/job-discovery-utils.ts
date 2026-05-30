@@ -96,8 +96,9 @@ function searchUrl(keyword: string, location: string, source: 'linkedin' | 'inde
 function fallbackTitleVariants(role: string): string[] {
   const lowerRole = role.toLowerCase()
   if (lowerRole.includes('salesforce') || lowerRole.includes('crm')) {
+    const isCleanRole = role.length <= 45 && role.split(/\s+/).length <= 5
     return [
-      role,
+      ...(isCleanRole ? [role] : []),
       'Salesforce Business Analyst',
       'Salesforce Administrator',
       'Salesforce Functional Consultant',
