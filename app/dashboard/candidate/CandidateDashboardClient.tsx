@@ -178,9 +178,10 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
   }
 
   const latestResume = resumes[0]
+  const latestResumeReady = !latestResume?.processing_status || latestResume.processing_status === 'ready'
   const latestResumeSub = !latestResume
     ? 'Upload to get started'
-    : latestResume.processing_status === 'ready'
+    : latestResumeReady
       ? 'Parsed & ready'
       : 'Stored, parsing pending'
 
@@ -323,16 +324,16 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                     <FileText className="h-8 w-8 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium">
-                        {latestResume.processing_status === 'ready' ? latestResume.parsed_data.name : 'Resume uploaded'}
+                        {latestResumeReady ? latestResume.parsed_data.name : 'Resume uploaded'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {latestResume.processing_status === 'ready'
+                        {latestResumeReady
                           ? latestResume.parsed_data.skills?.slice(0, 4).join(', ')
                           : 'Stored safely. AI parsing is pending until provider credits are available.'}
                       </p>
                     </div>
-                    <Badge variant={latestResume.processing_status === 'ready' ? 'success' : 'warning'}>
-                      {latestResume.processing_status === 'ready' ? 'Active' : 'Pending AI'}
+                    <Badge variant={latestResumeReady ? 'success' : 'warning'}>
+                      {latestResumeReady ? 'Active' : 'Pending AI'}
                     </Badge>
                   </div>
                 </div>
@@ -453,7 +454,8 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                   <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Your resumes</h2>
                   <div className="space-y-3">
                     {resumes.map((resume, i) => {
-                      const description = resume.processing_status === 'ready'
+                      const resumeReady = !resume.processing_status || resume.processing_status === 'ready'
+                      const description = resumeReady
                         ? `${resume.parsed_data.skills?.slice(0, 3).join(', ')} · ${resume.parsed_data.experience?.length ?? 0} roles`
                         : 'Stored safely. Parsing pending until AI is available.'
 
@@ -462,13 +464,13 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
                           <FileText className="h-6 w-6 text-primary shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm">
-                              {resume.processing_status === 'ready' ? resume.parsed_data.name : 'Resume uploaded'}
+                              {resumeReady ? resume.parsed_data.name : 'Resume uploaded'}
                             </p>
                             <p className="text-xs text-muted-foreground">{description}</p>
                           </div>
                           {i === 0 && (
-                            <Badge variant={resume.processing_status === 'ready' ? 'success' : 'warning'}>
-                              {resume.processing_status === 'ready' ? 'Active' : 'Pending AI'}
+                            <Badge variant={resumeReady ? 'success' : 'warning'}>
+                              {resumeReady ? 'Active' : 'Pending AI'}
                             </Badge>
                           )}
                         </div>

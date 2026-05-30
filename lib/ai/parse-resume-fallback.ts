@@ -18,9 +18,28 @@ const KNOWN_SKILLS = [
   'aws','azure','gcp','docker','kubernetes','terraform','vercel','netlify','github actions','ci/cd',
   // AI / Data
   'machine learning','deep learning','tensorflow','pytorch','openai','langchain','pandas','numpy',
+  // CRM / Business analysis
+  'salesforce','sales cloud','service cloud','crm','business analysis','business analyst',
+  'requirements gathering','user stories','uat','jira','soql','reports','dashboards',
+  'stakeholder management','process mapping','gap analysis',
   // General
   'git','rest','graphql','grpc','microservices','agile','scrum','linux','bash',
 ]
+
+const SKILL_LABELS: Record<string, string> = {
+  crm: 'CRM',
+  uat: 'UAT',
+  jira: 'Jira',
+  soql: 'SOQL',
+  sql: 'SQL',
+  aws: 'AWS',
+  azure: 'Azure',
+  gcp: 'GCP',
+}
+
+function formatSkillLabel(skill: string): string {
+  return SKILL_LABELS[skill] ?? skill.split(' ').map(part => SKILL_LABELS[part] ?? part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+}
 
 function extractEmail(text: string): string | undefined {
   const match = text.match(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i)
@@ -58,18 +77,31 @@ function extractSkills(text: string): string[] {
     // Match whole word (or phrase)
     const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     if (new RegExp(`\\b${escaped}\\b`, 'i').test(lowerText)) {
-      found.add(skill.charAt(0).toUpperCase() + skill.slice(1))
+      found.add(formatSkillLabel(skill))
     }
   }
 
   return Array.from(found).slice(0, 30)
 }
 
+function extractSection(text: string, sectionNames: string[], stopNames: string[]): string {
+  const lines = text.split('\n')
+  const startIndex = lines.findIndex(line =>
+    sectionNames.some(name => line.trim().toLowerCase() === name),
+  )
+  if (startIndex < 0) return ''
+
+  const endIndex = lines.findIndex((line, index) =>
+    index > startIndex && stopNames.some(name => line.trim().toLowerCase() === name),
+  )
+  return lines.slice(startIndex + 1, endIndex > startIndex ? endIndex : undefined).join('\n')
+}
+
 function extractExperience(text: string) {
   const experience: Array<{ title: string; company: string; start?: string; end?: string; description?: string }> = []
 
   // Find experience section
-  const expSection = text.match(/(?:experience|work history|employment)([\s\S]*?)(?:education|skills|projects|certifications|$)/i)?.[1] ?? ''
+  const expSection = extractSection(text, ['experience', 'work history', 'employment'], ['education', 'skills', 'projects', 'certifications'])
   if (!expSection) return experience
 
   // Match job entries: Title at/@ Company (optional dates)
@@ -104,7 +136,7 @@ function extractExperience(text: string) {
 function extractEducation(text: string) {
   const education: Array<{ degree: string; institution: string; year?: string }> = []
 
-  const eduSection = text.match(/(?:education|academic|qualifications?)([\s\S]*?)(?:experience|skills|projects|certifications|$)/i)?.[1] ?? ''
+  const eduSection = extractSection(text, ['education', 'academic', 'qualification', 'qualifications'], ['experience', 'skills', 'projects', 'certifications'])
   if (!eduSection) return education
 
   const blocks = eduSection.split(/\n\s*\n/).filter(b => b.trim().length > 5)

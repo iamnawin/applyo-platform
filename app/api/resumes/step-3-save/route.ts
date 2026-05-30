@@ -9,7 +9,7 @@ import { buildPreferencesFromResume } from '@/lib/services/preferences-service'
 
 // STEP 3: VECTORS & SAVING
 // Embedding is optional — if it fails, the resume is always saved and visible.
-// processing_status is NOT included in the insert to avoid schema issues.
+// Resume is saved after parsing completes, so it should be ready even when optional embedding fails.
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
       storage_path: fileName,
       parsed_data: parsedData,
       embedding,
+      processing_status: 'ready',
     })
     .select()
     .single()
