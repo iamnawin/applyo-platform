@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getCandidateByUserId } from '@/lib/db/candidates'
+import { getCandidateByUserId, upsertCandidate } from '@/lib/db/candidates'
 import { getPreferencesByCandidateId, upsertPreferences } from '@/lib/db/preferences'
 import { z } from 'zod'
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const candidate = await getCandidateByUserId(user.id)
-  if (!candidate) return NextResponse.json({ error: 'Candidate profile not found' }, { status: 404 })
+    ?? await upsertCandidate({ user_id: user.id, email: user.email ?? '', full_name: user.user_metadata?.full_name || user.email || '' })
 
   const body = await req.json()
   const parsed = preferencesSchema.safeParse(body)
