@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { dedupeSuggestedJobs, scoreJobForResume } from './basic-matching-utils.ts'
+import { dedupeSuggestedJobs, normalizeSuggestedJob, scoreJobForResume } from './basic-matching-utils.ts'
 
 const salesforceResume = {
   name: 'Test Candidate',
@@ -143,8 +143,8 @@ test('dedupeSuggestedJobs removes repeated jobs and handled application jobs', (
       job: {
         ...baseJob,
         id: 'fresh',
-        source_url: 'https://www.indeed.com/jobs?q=Salesforce',
-        normalized_data: { ...baseJob.normalized_data, company: 'Indeed Jobs Search' },
+        source_url: 'https://www.indeed.com/jobs?q=Salesforce+Administrator',
+        normalized_data: { ...baseJob.normalized_data, title: 'Salesforce Administrator', company: 'Indeed Jobs Search' },
       },
       score: 80,
       reasons: ['C'],
@@ -152,4 +152,57 @@ test('dedupeSuggestedJobs removes repeated jobs and handled application jobs', (
   ], new Set(['handled']))
 
   assert.deepEqual(suggestions.map(suggestion => suggestion.job.id), ['fresh'])
+})
+
+test('dedupeSuggestedJobs collapses legacy fallback search duplicates across URLs and sources', () => {
+  const longTitle = 'Salesforce Implementation & Administration Requirements Gathering & User Stories Healthcare & Life Sciences Domain'
+  const suggestions = dedupeSuggestedJobs([
+    {
+      job: normalizeSuggestedJob({
+        id: '1',
+        company_id: null,
+        raw_description: longTitle,
+        normalized_data: {
+          title: longTitle,
+          company: 'LinkedIn Jobs Search',
+          location: 'India',
+          type: undefined,
+          skills: [],
+          salary_range: null,
+        },
+        embedding: null,
+        status: 'active',
+        source: 'resume-fallback',
+        source_url: 'https://www.linkedin.com/jobs/search/?keywords=Salesforce+Business+Analyst',
+        created_at: '',
+      } as any),
+      score: 90,
+      reasons: ['A'],
+    },
+    {
+      job: normalizeSuggestedJob({
+        id: '2',
+        company_id: null,
+        raw_description: longTitle,
+        normalized_data: {
+          title: longTitle,
+          company: 'Indeed Jobs Search',
+          location: 'India',
+          type: undefined,
+          skills: [],
+          salary_range: null,
+        },
+        embedding: null,
+        status: 'active',
+        source: 'resume-fallback',
+        source_url: 'https://www.indeed.com/jobs?q=Salesforce+Business+Analyst',
+        created_at: '',
+      } as any),
+      score: 89,
+      reasons: ['B'],
+    },
+  ])
+
+  assert.equal(suggestions.length, 1)
+  assert.equal(suggestions[0].job.normalized_data.title, 'Salesforce Business Analyst')
 })

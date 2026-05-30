@@ -3,7 +3,7 @@ import { listJobs } from '@/lib/db/jobs'
 import { getPreferencesByCandidateId } from '@/lib/db/preferences'
 import type { Job } from '@/lib/types'
 import { getLatestResumeByCandidateId } from '@/lib/db/resumes'
-import { dedupeSuggestedJobs, scoreJobForResume } from './basic-matching-utils'
+import { dedupeSuggestedJobs, normalizeSuggestedJob, scoreJobForResume } from './basic-matching-utils'
 export { scoreJobForResume }
 
 export interface SuggestedJob {
@@ -48,7 +48,7 @@ export async function getSuggestedJobsForCandidate(candidateId: string, limit = 
     .map(job => {
       const { score, reasons } = scoreJobForResume(resume.parsed_data, preferences, job, candidate.location)
       return {
-        job,
+        job: normalizeSuggestedJob(job),
         score,
         reasons,
       }

@@ -15,6 +15,47 @@ function normalize(value: string | null | undefined): string {
   return (value ?? '').toLowerCase()
 }
 
+function isFallbackSearchJob(job: Job): boolean {
+  const company = normalize(job.normalized_data.company)
+  const url = normalize(job.source_url)
+  return (
+    job.source === 'resume-fallback' ||
+    company.includes('jobs search') ||
+    url.includes('/jobs/search') ||
+    url.includes('indeed.com/jobs?')
+  )
+}
+
+function cleanLegacyFallbackTitle(title: string, rawDescription: string): string {
+  const text = `${title} ${rawDescription}`.toLowerCase()
+  const looksLikeResumeSummary =
+    title.length > 70 ||
+    text.includes('requirements gathering') ||
+    text.includes('user stories') ||
+    text.includes('healthcare & life sciences')
+
+  if (!looksLikeResumeSummary) return title
+  if (text.includes('salesforce') && text.includes('administrator')) return 'Salesforce Administrator'
+  if (text.includes('salesforce')) return 'Salesforce Business Analyst'
+  if (text.includes('business analyst') || text.includes('requirements')) return 'Business Analyst'
+  return title
+}
+
+export function normalizeSuggestedJob(job: Job): Job {
+  if (!isFallbackSearchJob(job)) return job
+
+  const title = cleanLegacyFallbackTitle(job.normalized_data.title, job.raw_description)
+  if (title === job.normalized_data.title) return job
+
+  return {
+    ...job,
+    normalized_data: {
+      ...job.normalized_data,
+      title,
+    },
+  }
+}
+
 function uniqueClean(values: Array<string | null | undefined>, limit = 12): string[] {
   const seen = new Set<string>()
   const result: string[] = []
@@ -112,6 +153,16 @@ export function scoreJobForResume(
 }
 
 function suggestionDedupeKey(job: Job): string {
+  if (isFallbackSearchJob(job)) {
+    return [
+      cleanLegacyFallbackTitle(job.normalized_data.title, job.raw_description),
+      job.normalized_data.location,
+    ]
+      .map(value => value?.trim().toLowerCase())
+      .filter(Boolean)
+      .join('|')
+  }
+
   const sourceUrl = job.source_url?.trim().toLowerCase()
   if (sourceUrl) return `url:${sourceUrl}`
 
