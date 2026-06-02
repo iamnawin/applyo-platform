@@ -1,3 +1,5 @@
+import { isGreenhouseDirectUrl } from './platforms/greenhouse-api-apply'
+
 interface ApplyEligibilityInput {
   browserConfigured: boolean
   sourceUrl?: string | null
@@ -27,6 +29,11 @@ function isSearchBackedSource(sourceUrl?: string | null, source?: string | null)
 export function getManualApplyReason(input: ApplyEligibilityInput): string | null {
   const url = input.sourceUrl?.toLowerCase() ?? ''
   const source = input.source?.toLowerCase() ?? ''
+
+  // Greenhouse direct URLs can be applied via API without a browser
+  if (input.sourceUrl && isGreenhouseDirectUrl(input.sourceUrl)) {
+    return null
+  }
 
   if (!input.browserConfigured) {
     return 'Browser automation is not configured.'

@@ -5,10 +5,11 @@ import {
 } from '@/lib/db/applications'
 import { createServerClient } from '@/lib/db/client'
 import { applyToJob } from './platforms/playwright-apply' // Generic fallback
-import { applyToGreenhouse } from './platforms/greenhouse-apply' // Greenhouse driver
+import { applyToGreenhouse } from './platforms/greenhouse-apply' // Greenhouse browser driver
 import { applyToIndeed } from './platforms/indeed-apply' // Indeed driver
 import { applyToNaukri } from './platforms/naukri-apply' // Naukri driver
 import { applyToLinkedIn } from './platforms/linkedin-apply' // LinkedIn driver
+import { applyViaGreenhouseApi, isGreenhouseDirectUrl } from './platforms/greenhouse-api-apply' // Greenhouse API
 
 /**
  * Determines the job platform from the URL.
@@ -35,7 +36,45 @@ export async function routeApply(applicationId: string, generatedCoverLetter?: s
   try {
     await log('Automation process started.')
 
-    // Check if browser automation is available
+    const application = await getApplicationById(applicationId)
+    if (!application || !application.job || !application.candidate) {
+      throw new Error('Application, job, or candidate data not found.')
+    }
+    if (!application.job.source_url) {
+      throw new Error('Job has no source URL, cannot apply automatically.')
+    }
+
+    const jobUrl = application.job.source_url
+    const activeResume = application.candidate.resumes?.find(r => !r.processing_status || r.processing_status === 'ready')
+    if (!activeResume || !activeResume.parsed_data || !activeResume.storage_path) {
+      throw new Error('No active, parsed, or stored resume found for the candidate.')
+    }
+
+    // Greenhouse API path — no browser needed
+    if (isGreenhouseDirectUrl(jobUrl)) {
+      await updateApplicationAutomationStatus(applicationId, 'in_progress')
+      await log('Using Greenhouse direct API submission (no browser required)')
+
+      const { data: resumeBlob, error: dlErr } = await supabase.storage.from('resumes').download(activeResume.storage_path)
+      if (dlErr) throw new Error(`Failed to download resume: ${dlErr.message}`)
+      const resumeFile = Buffer.from(await resumeBlob.arrayBuffer())
+
+      await applyViaGreenhouseApi({
+        jobUrl,
+        resume: activeResume.parsed_data,
+        resumeFile,
+        resumeFileName: activeResume.storage_path.split('/').pop() || 'resume.pdf',
+        log,
+        generatedCoverLetter,
+        jobData: application.job.normalized_data,
+      })
+
+      await updateApplicationAutomationStatus(applicationId, 'submitted')
+      await log('Automation completed: submitted via Greenhouse API.')
+      return
+    }
+
+    // Browser-based path — requires BROWSER_WS_ENDPOINT
     const hasBrowser = Boolean(process.env.BROWSER_WS_ENDPOINT)
     if (!hasBrowser) {
       await log('No remote browser configured (BROWSER_WS_ENDPOINT not set). Marking as manual apply.')
@@ -45,36 +84,17 @@ export async function routeApply(applicationId: string, generatedCoverLetter?: s
 
     await updateApplicationAutomationStatus(applicationId, 'in_progress')
 
-    const application = await getApplicationById(applicationId)
-
-    if (!application || !application.job || !application.candidate) {
-      throw new Error('Application, job, or candidate data not found.')
-    }
-    if (!application.job.source_url) {
-      throw new Error('Job has no source URL, cannot apply automatically.')
-    }
-
-    const activeResume = application.candidate.resumes?.find(r => !r.processing_status || r.processing_status === 'ready')
-    if (!activeResume || !activeResume.parsed_data || !activeResume.storage_path) {
-      throw new Error('No active, parsed, or stored resume found for the candidate.')
-    }
-
-    // Download the resume file from Supabase Storage
+    // Download resume
     await log(`Downloading resume from: ${activeResume.storage_path}`)
     const { data: resumeBlob, error: downloadError } = await supabase.storage
       .from('resumes')
       .download(activeResume.storage_path)
-
-    if (downloadError) {
-      throw new Error(`Failed to download resume: ${downloadError.message}`)
-    }
+    if (downloadError) throw new Error(`Failed to download resume: ${downloadError.message}`)
     const resumeFile = Buffer.from(await resumeBlob.arrayBuffer())
     const resumeFileName = activeResume.storage_path.split('/').pop() || 'resume.pdf'
-    await log(`Resume downloaded successfully (${(resumeFile.length / 1024).toFixed(2)} KB).`)
+    await log(`Resume downloaded (${(resumeFile.length / 1024).toFixed(2)} KB).`)
 
-    const jobUrl = application.job.source_url
     const platform = detectPlatform(jobUrl)
-
     await log(`Detected platform: ${platform}`)
 
     const applyParams = {
@@ -112,7 +132,6 @@ export async function routeApply(applicationId: string, generatedCoverLetter?: s
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.'
     console.error(`[automation] Error processing application ${applicationId}:`, errorMessage)
-    // Log the failure and set the status to 'failed'
     await log(`Automation failed: ${errorMessage}`)
     await updateApplicationAutomationStatus(applicationId, 'failed')
   }

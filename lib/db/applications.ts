@@ -29,6 +29,20 @@ export async function upsertApplication(
   application: Partial<Application> & { candidate_id: string; job_id: string; match_reasons?: string[] | null }
 ) {
   const db = createServerClient()
+
+  // Guard: never overwrite a non-pending status back to pending
+  if (application.status === 'pending') {
+    const { data: existing } = await db
+      .from('applications')
+      .select('id, status')
+      .eq('candidate_id', application.candidate_id)
+      .eq('job_id', application.job_id)
+      .single()
+    if (existing && existing.status !== 'pending') {
+      return existing as unknown as Application
+    }
+  }
+
   const { data, error } = await db
     .from('applications')
     .upsert(application, { onConflict: 'candidate_id,job_id' })
