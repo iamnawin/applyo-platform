@@ -131,8 +131,13 @@ export function CandidateDashboardClient({ user, candidate, initialResumes, init
     }
   }, [tab])
 
-  function handleQueueAction(id: string) {
+  function handleQueueAction(id: string, action?: string, applyMethod?: string) {
     setQueue(prev => prev.filter(a => a.id !== id))
+    if (action === 'approved' && applyMethod) {
+      if (applyMethod === 'api_direct') toast('✓ Application submitted instantly!', 'success')
+      else if (applyMethod === 'browser_queued') toast('⏳ Applying in background...', 'success')
+      else if (applyMethod === 'manual') toast('📋 Moved to assisted apply', 'success')
+    }
   }
 
   async function approveApplication(app: ApplicationWithJob) {

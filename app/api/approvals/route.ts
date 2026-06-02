@@ -85,13 +85,23 @@ export async function POST(req: NextRequest) {
     if (manualReason) {
       await updateApplicationAutomationStatus(updated.id, 'manual')
       await logToApplication(updated.id, `Manual apply required: ${manualReason}`)
-      return NextResponse.json({ ...updated, automation_status: 'manual' })
+      return NextResponse.json({ ...updated, automation_status: 'manual', apply_method: 'manual' })
     }
+
+    // Determine apply method for frontend feedback
+    const sourceUrl = job?.source_url ?? ''
+    const isGreenhouseApi = sourceUrl.includes('boards.greenhouse.io') || sourceUrl.includes('boards-api.greenhouse.io')
 
     await updateApplicationAutomationStatus(updated.id, 'in_progress')
     triggerApply(updated.id, generated_cover_letter).catch(async err => {
       console.error(`Failed to trigger automation for application ${updated.id}:`, err)
       await updateApplicationAutomationStatus(updated.id, 'failed').catch(() => {})
+    })
+
+    return NextResponse.json({
+      ...updated,
+      automation_status: 'in_progress',
+      apply_method: isGreenhouseApi ? 'api_direct' : 'browser_queued',
     })
   }
 

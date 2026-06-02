@@ -15,7 +15,7 @@ function isSearchBackedJob(job: Job): boolean {
 
 interface Props {
   application: Application & { job: Job }
-  onAction: (id: string, action: 'approved' | 'skipped') => void
+  onAction: (id: string, action: 'approved' | 'skipped', applyMethod?: string) => void
 }
 
 export function ApprovalQueueCard({ application, onAction }: Props) {
@@ -47,7 +47,7 @@ export function ApprovalQueueCard({ application, onAction }: Props) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Action failed')
-      onAction(application.id, action)
+      onAction(application.id, action, data.apply_method)
     } catch {
       // show error in production
     } finally {

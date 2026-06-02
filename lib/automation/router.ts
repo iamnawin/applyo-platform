@@ -10,6 +10,9 @@ import { applyToIndeed } from './platforms/indeed-apply' // Indeed driver
 import { applyToNaukri } from './platforms/naukri-apply' // Naukri driver
 import { applyToLinkedIn } from './platforms/linkedin-apply' // LinkedIn driver
 import { applyViaGreenhouseApi, isGreenhouseDirectUrl } from './platforms/greenhouse-api-apply' // Greenhouse API
+import { injectSession, checkSessionValid } from './session-injector'
+import { getLinkedAccounts, type Platform } from '@/lib/services/platform-accounts'
+import { canApplyToday } from './rate-limiter'
 
 /**
  * Determines the job platform from the URL.
@@ -40,6 +43,15 @@ export async function routeApply(applicationId: string, generatedCoverLetter?: s
     if (!application || !application.job || !application.candidate) {
       throw new Error('Application, job, or candidate data not found.')
     }
+
+    // Rate limit check
+    const quota = await canApplyToday(application.candidate_id)
+    if (!quota.allowed) {
+      await log(`Daily limit reached (${quota.used}/${quota.limit}). Queued for later.`)
+      await updateApplicationAutomationStatus(applicationId, 'pending')
+      return
+    }
+
     if (!application.job.source_url) {
       throw new Error('Job has no source URL, cannot apply automatically.')
     }
@@ -76,8 +88,19 @@ export async function routeApply(applicationId: string, generatedCoverLetter?: s
 
     // Browser-based path — requires BROWSER_WS_ENDPOINT
     const hasBrowser = Boolean(process.env.BROWSER_WS_ENDPOINT)
+    const platform = detectPlatform(jobUrl)
+    const platformKey = (['linkedin', 'indeed', 'naukri'].includes(platform) ? platform : null) as Platform | null
+
+    // Check if user has a linked account for this platform
+    const linkedAccounts = await getLinkedAccounts(application.candidate_id)
+    const hasLinkedAccount = platformKey ? linkedAccounts.some(a => a.platform === platformKey && a.status === 'active') : false
+
     if (!hasBrowser) {
-      await log('No remote browser configured (BROWSER_WS_ENDPOINT not set). Marking as manual apply.')
+      if (hasLinkedAccount) {
+        await log(`Platform account linked for ${platform} but no browser available. Marking manual.`)
+      } else {
+        await log('No remote browser and no linked account. Marking as manual apply.')
+      }
       await updateApplicationAutomationStatus(applicationId, 'manual')
       return
     }
@@ -94,8 +117,7 @@ export async function routeApply(applicationId: string, generatedCoverLetter?: s
     const resumeFileName = activeResume.storage_path.split('/').pop() || 'resume.pdf'
     await log(`Resume downloaded (${(resumeFile.length / 1024).toFixed(2)} KB).`)
 
-    const platform = detectPlatform(jobUrl)
-    await log(`Detected platform: ${platform}`)
+    await log(`Detected platform: ${platform}${hasLinkedAccount ? ' (account linked)' : ''}`)
 
     const applyParams = {
       jobUrl,
